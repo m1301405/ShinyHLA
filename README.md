@@ -7,7 +7,7 @@ ShinyHLA is an R/Shiny-based tool for HLA typing, supporting WES and RNA-seq dat
 - *Enhanced data visualization and analysis: Incorporates a pivot table and the Integrative Genomics Viewer (IGV) for efficient result review and comparison.*
 
 ## Website
-
+給Documentation網誌
 
 ## Requirements
 ShinyHLA uses the following software and reference: 
@@ -32,8 +32,9 @@ ShinyHLA uses the following software and reference:
 2. Call `docker pull xxxx/shinyhla` which will download the Docker image.
 3. You can use the image as followes: \
    `docker run -d -p 3838:3838 --name shinyhla shinyhla:latest`
-   
-* For more detailed installation and operation instructions, please refer to [Welcome to ShinyHLA’s documentation](https://unknown.com), section 3.1.
+4. Open your web browser and navigate to `http://localhost:3838`.
+
+For more detailed installation and operation instructions, please refer to [Welcome to ShinyHLA’s documentation](https://unknown.com), section 3.
 
 ## Citation
 [Cheng-Chi Yang, xxx, xxx, and xxx. "ShinyHLA: An R/Shiny-Based Web Application for HLA Typing of NGS Data." journal (Date).](https://unknown.com)
