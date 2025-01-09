@@ -18,7 +18,7 @@ ShinyHLA uses the following software and reference:
 - [SpecHLA v1.0.7](https://github.com/deepomicslab/SpecHLA)
 
 ### 2. R packages
-- Please refer to [Welcome to ShinyHLA’s documentation](https://unknown.com) section 1.7.
+- Please refer to [Welcome to ShinyHLA’s documentation](https://unknown.com), section 1.7.
 
 ### 3. Sequence Processing Tools
 - [seqtk v1.3-r106](https://github.com/lh3/seqtk)
@@ -32,7 +32,8 @@ ShinyHLA uses the following software and reference:
 2. Call `docker pull xxxx/shinyhla` which will download the Docker image.
 3. You can use the image as followes:
    `docker run -d -p 3838:3838 --name shinyhla shinyhla:latest`
-※更詳細的安裝與操作說明可以參考[Welcome to ShinyHLA’s documentation](https://unknown.com) section 3.1.
+   
+* For more detailed installation and operation instructions, please refer to [Welcome to ShinyHLA’s documentation](https://unknown.com), section 3.1.
 
 ## Citation
 [Cheng-Chi Yang, xxx, xxx, and xxx. "ShinyHLA: An R/Shiny-Based Web Application for HLA Typing of NGS Data." journal (Date).](https://unknown.com)
