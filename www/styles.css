@@ -1,0 +1,31 @@
+body {
+  font-family: "Comic Sans MS", sans-serif;
+}
+
+/* Remove the border around tabPanel tabs */
+.nav-tabs > li > a {
+  background-color: white; /* Set the tab background color to white */
+  color: #495057;          /* Set the tab text color */
+  border: none;            /* Remove the border */
+  padding: 10px 15px;      /* Add padding inside the tab */
+  margin-right: 5px;       /* Add spacing between tabs */
+  border-radius: 0;        /* Remove rounded corners */
+}
+
+/* Change background and text color when hovering over a tab */
+.nav-tabs > li > a:hover {
+  background-color: #e9ecef; /* Background color on hover */
+  color: #007bff;            /* Text color on hover */
+}
+
+/* Style for active tab: background and text color, remove bottom border */
+.nav-tabs > li.active > a {
+  background-color: #e9ecef; /* Background color for active tab */
+  color: #007bff;            /* Text color for active tab */
+  border-bottom-color: transparent; /* Remove bottom border of active tab */
+}
+
+/* Remove the default border below tabs */
+.nav-tabs {
+  border-bottom: none; 
+}
