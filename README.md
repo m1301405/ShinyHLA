@@ -30,7 +30,7 @@ ShinyHLA uses the following software and reference:
 ## Installation via Docker 
 1. Install Docker on your computer and make sure it works.
 2. Call `docker pull xxxx/shinyhla` which will download the Docker image.
-3. You can use the image as followes:
+3. You can use the image as followes: \
    `docker run -d -p 3838:3838 --name shinyhla shinyhla:latest`
    
 * For more detailed installation and operation instructions, please refer to [Welcome to ShinyHLA’s documentation](https://unknown.com), section 3.1.
