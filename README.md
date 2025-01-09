@@ -28,7 +28,11 @@ ShinyHLA uses the following software and reference:
 - [Gencode](https://www.gencodegenes.org/human/release_38.html): gencode.v38.annotation.gff3
 
 ## Installation via Docker 
-
+1. Install Docker on your computer and make sure it works.
+2. Call `docker pull xxxx/shinyhla` which will download the Docker image.
+3. You can use the image as followes:
+   `docker run -d -p 3838:3838 --name shinyhla shinyhla:latest`
+※更詳細的安裝與操作說明可以參考[Welcome to ShinyHLA’s documentation](https://unknown.com) section 3.1.
 
 ## Citation
 [Cheng-Chi Yang, xxx, xxx, and xxx. "ShinyHLA: An R/Shiny-Based Web Application for HLA Typing of NGS Data." journal (Date).](https://unknown.com)
