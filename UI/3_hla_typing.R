@@ -29,7 +29,7 @@ tabItem(tabName = "hla",
                       style = "margin-left: 10px;",
                       tooltip(
                         icon("info-circle"),
-                        title = "Select the sequencing type, HLA reference genome version, and genotyping tool for analysis.",
+                        title = "Select sequencing type, HLA reference genome version, and genotyping tool for analysis.",
                         placement = "right"
                       )
                     )
@@ -52,7 +52,7 @@ tabItem(tabName = "hla",
                       ),
                       tooltip(
                         icon("info-circle"),
-                        title = "Use the MHC class I & II buttons to organize genotyping results into tables. Adjust columns and rows by dragging and dropping items.",
+                        title = "Use the MHC Class I & II buttons to organize genotyping results into tables. Drag and drop to adjust columns and rows.",
                         placement = "right"
                       )
                     ),
@@ -90,7 +90,7 @@ tabItem(tabName = "hla",
                               ),
                               tooltip(
                                 icon("info-circle"),
-                                title = "Use the Integrative Genomics Viewer (IGV) to visualize the alignment results from the typing process.",
+                                title = "Use Integrative Genomics Viewer (IGV) to visualize alignment results from the typing process.",
                                 placement = "right"
                               )
                             )
@@ -102,7 +102,7 @@ tabItem(tabName = "hla",
                               downloadButton(outputId = "hla_typing_download", label = "Download"),
                               tooltip(
                                 icon("info-circle"),
-                                title = "Save the nucleotide and protein sequences of HLA alleles in fasta format.",
+                                title = "Save HLA allele nucleotide and protein sequences in FASTA format.",
                                 placement = "right"
                               )
                             )
@@ -241,10 +241,9 @@ tabItem(tabName = "hla",
                 style = "border-left: 4px solid #d9534f; padding: 10px; background-color: #f9f9f9; margin-bottom: 15px;",
                 HTML(
                   "<p style='font-size: 12px; color: #555; margin: 0;'>
-           <strong>Hint:</strong> Due to the incomplete integration between the IGV and Shiny packages, 
-           it is recommended to adjust the webpage window to an appropriate size before proceeding with 'Display'. 
-           If you notice any anomalies in the Genome Track display, 
-           you can correct the issue by readjusting the window size of the ShinyHLA webpage.
+           <strong>Hint:</strong> Due to the partial integration between IGV and Shiny, 
+           we recommend adjusting the browser window to an appropriate size before using “Display.” 
+           If you encounter any anomalies in the Genome Track, resizing the ShinyHLA window should resolve them.
            </p>"
                 )
               ),
@@ -276,7 +275,7 @@ tabItem(tabName = "hla",
                               style = "margin-left: 10px;",
                               tooltip(
                                 icon("info-circle"),
-                                title = "If you provide sequencing files in BAM format, you can upload them for sequence visualization (GRCh38-aligned files only).",
+                                title = "Upload BAM files for sequence visualization if available.",
                                 placement = "right"
                               )
                             )
@@ -307,7 +306,7 @@ tabItem(tabName = "hla",
                               style = "margin-left: 10px;",
                               tooltip(
                                 icon("info-circle"),
-                                title = "If you provide sequencing files in BAM format, you can upload them for sequence visualization (GRCh38-aligned files only).",
+                                title = "Upload BAM files for sequence visualization if available.",
                                 placement = "right"
                               )
                             )
@@ -354,7 +353,7 @@ tabItem(tabName = "hla",
                                 style = "margin-left: 10px;",
                                 tooltip(
                                   icon("info-circle"),
-                                  title = "Upload the BAM file generated during the HLA typing process after sequence alignment.",
+                                  title = "Upload the BAM file from HLA typing after sequence alignment.",
                                   placement = "right"
                                 )
                               )

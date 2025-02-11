@@ -41,30 +41,75 @@ observeEvent(input$hla_typing_button,{
     }
     dir.create("./IGV/optitype", showWarnings = FALSE)
     #----------------------------------------------------------
-    # Merge alignment files
-    system("samtools sort -T ./IGV/optitype/temp_1 -o ./IGV/optitype/optitype_1_sorted.bam ./Output/optitype/*_1.bam")
-    system("samtools sort -T ./IGV/optitype/temp_2 -o ./IGV/optitype/optitype_2_sorted.bam ./Output/optitype/*_2.bam")
-    system("samtools merge ./IGV/optitype/optitype_merge.bam ./IGV/optitype/optitype_1_sorted.bam ./IGV/optitype/optitype_2_sorted.bam")
+    # --- Merge alignment files ---
+    # Sort _1.bam files if they exist
+    bam1_files <- Sys.glob("./Output/optitype/*_1.bam")
+    if (length(bam1_files) > 0) {
+      sort_cmd1 <- "samtools sort -T ./IGV/optitype/temp_1 -o ./IGV/optitype/optitype_1_sorted.bam ./Output/optitype/*_1.bam"
+      system(sort_cmd1)
+    } else {
+      message("[Warning] No *_1.bam files found. Skipping sort for *_1.bam.")
+    }
     
-    # Remove intermediate files
-    bam_1 <- Sys.glob("./Output/optitype/*_1.bam")
-    bam_2 <- Sys.glob("./Output/optitype/*_2.bam")
-    file.remove(bam_1)
-    file.remove(bam_2)
-    file.remove("./IGV/optitype/optitype_1_sorted.bam")
-    file.remove("./IGV/optitype/optitype_2_sorted.bam")
+    # Sort _2.bam files if they exist
+    bam2_files <- Sys.glob("./Output/optitype/*_2.bam")
+    if (length(bam2_files) > 0) {
+      sort_cmd2 <- "samtools sort -T ./IGV/optitype/temp_2 -o ./IGV/optitype/optitype_2_sorted.bam ./Output/optitype/*_2.bam"
+      system(sort_cmd2)
+    } else {
+      message("[Warning] No *_2.bam files found. Skipping sort for *_2.bam.")
+    }
     
-    ## Extract the "main sequence" from the alignment file
-    system("samtools view -h ./IGV/optitype/optitype_merge.bam > ./IGV/optitype/optitype_merge.sam")
-    system("awk '$2 == 0 || $1 ~ /^@/' ./IGV/optitype/optitype_merge.sam > ./IGV/optitype/optitype_merge_filtered.sam")
-    system("samtools view -Sb ./IGV/optitype/optitype_merge_filtered.sam > ./IGV/optitype/optitype_merge_filtered.bam")
+    # Merge sorted BAM files if both exist
+    sorted_bam1 <- "./IGV/optitype/optitype_1_sorted.bam"
+    sorted_bam2 <- "./IGV/optitype/optitype_2_sorted.bam"
+    if (file.exists(sorted_bam1) && file.exists(sorted_bam2)) {
+      merge_cmd <- paste("samtools merge ./IGV/optitype/optitype_merge.bam", sorted_bam1, sorted_bam2)
+      system(merge_cmd)
+    } else {
+      message("[Warning] One or both sorted BAM files are missing. Merge not executed.")
+    }
     
-    # Remove intermediate files
-    file.remove("./IGV/optitype/optitype_merge.bam")
-    file.remove("./IGV/optitype/optitype_merge.sam")
-    file.remove("./IGV/optitype/optitype_merge_filtered.sam")
+    # Remove intermediate files (only remove if they exist)
+    if (length(bam1_files) > 0) file.remove(bam1_files)
+    if (length(bam2_files) > 0) file.remove(bam2_files)
+    if (file.exists(sorted_bam1)) file.remove(sorted_bam1)
+    if (file.exists(sorted_bam2)) file.remove(sorted_bam2)
     
-    ## Extract data where the reference of DNA/RNA is successfully matched with the main sequence
+    # --- Extract the "main sequence" from the alignment file ---
+    
+    merged_bam <- "./IGV/optitype/optitype_merge.bam"
+    merged_sam <- "./IGV/optitype/optitype_merge.sam"
+    if (file.exists(merged_bam)) {
+      view_cmd <- paste("samtools view -h", merged_bam, "> ./IGV/optitype/optitype_merge.sam")
+      system(view_cmd)
+    } else {
+      message("[Warning] Merged BAM file does not exist. Cannot convert to SAM.")
+    }
+    
+    filtered_sam <- "./IGV/optitype/optitype_merge_filtered.sam"
+    if (file.exists(merged_sam)) {
+      awk_cmd <- paste("awk '$2 == 0 || $1 ~ /^@/'", merged_sam, "> ./IGV/optitype/optitype_merge_filtered.sam")
+      system(awk_cmd)
+    } else {
+      message("[Warning] SAM file not found. Skipping filtering step.")
+    }
+    
+    filtered_bam <- "./IGV/optitype/optitype_merge_filtered.bam"
+    if (file.exists(filtered_sam)) {
+      conv_cmd <- paste("samtools view -Sb", filtered_sam, "> ./IGV/optitype/optitype_merge_filtered.bam")
+      system(conv_cmd)
+    } else {
+      message("[Warning] Filtered SAM file not found. Cannot convert to BAM.")
+    }
+    
+    if (file.exists(merged_bam)) file.remove(merged_bam)
+    if (file.exists(merged_sam)) file.remove(merged_sam)
+    if (file.exists(filtered_sam)) file.remove(filtered_sam)
+    
+    # --- Extract data based on the matched reference ---
+    
+    # Choose the reference FASTA file based on input$sequence
     if (input$sequence == "WES") {
       reference_fasta <- "/root/miniconda3/envs/optitype/share/optitype-1.3.2-3/data/hla_reference_dna.fasta"
     } else {
@@ -74,20 +119,29 @@ observeEvent(input$hla_typing_button,{
     input_bam <- file.path(getwd(), "IGV/optitype/optitype_merge_filtered.bam")
     igv_fasta <- file.path(getwd(), "IGV/optitype/optitype_hla_reference_igv.fasta")
     
-    system(paste("python /root/shiny/Server/optitype_igv_genome.py", 
-                 input_bam, 
-                 reference_fasta, 
-                 igv_fasta, 
-                 sep = " "))
-    ## Create an index of the reference
-    system(paste("samtools faidx", igv_fasta))
+    # Execute the Python script if the input BAM exists
+    if (file.exists(input_bam)) {
+      py_cmd <- paste("python /root/shiny/Server/optitype_igv_genome.py", 
+                      input_bam, reference_fasta, igv_fasta)
+      system(py_cmd)
+    } else {
+      message("[Warning] Input BAM file does not exist. Python script not executed.")
+    }
+    
+    # Create an index of the reference FASTA if it exists
+    if (file.exists(igv_fasta)) {
+      index_cmd <- paste("samtools faidx", igv_fasta)
+      system(index_cmd)
+    } else {
+      message("[Warning] IGV FASTA file does not exist. Cannot create index.")
+    }
     #----------------------------------------------------------
     optitype = read.table(file = "./Output/optitype/sample1_result.tsv", sep = '\t', header = TRUE)
     # whether the dataframe is empty
     if (nrow(optitype) == 0) {
       output$hla_typing_table <- renderDataTable({
         datatable(
-          data.frame(Message = "Fail: No Typing Result."),
+          data.frame(Message = "HLA typing unsuccessful: Insufficient sequencing reads detected."),
           class = 'nowrap'
         )
       })
@@ -95,14 +149,17 @@ observeEvent(input$hla_typing_button,{
       optitype_mhc_table <- data.frame(
         Allele = character(6),
         nucleotide = character(6),
-        protein = character(6))
-      optitype_mhc_table[1,1] <- optitype[1,2]
-      optitype_mhc_table[2,1] <- optitype[1,3]
-      optitype_mhc_table[3,1] <- optitype[1,4]
-      optitype_mhc_table[4,1] <- optitype[1,5]
-      optitype_mhc_table[5,1] <- optitype[1,6]
-      optitype_mhc_table[6,1] <- optitype[1,7]
-      #---------------------------------------------------------- 
+        protein = character(6),
+        stringsAsFactors = FALSE
+      )
+      
+      optitype_mhc_table[1,1] <- if (is.na(optitype[1,2]) || optitype[1,2] == "") "" else optitype[1,2]
+      optitype_mhc_table[2,1] <- if (is.na(optitype[1,3]) || optitype[1,3] == "") "" else optitype[1,3]
+      optitype_mhc_table[3,1] <- if (is.na(optitype[1,4]) || optitype[1,4] == "") "" else optitype[1,4]
+      optitype_mhc_table[4,1] <- if (is.na(optitype[1,5]) || optitype[1,5] == "") "" else optitype[1,5]
+      optitype_mhc_table[5,1] <- if (is.na(optitype[1,6]) || optitype[1,6] == "") "" else optitype[1,6]
+      optitype_mhc_table[6,1] <- if (is.na(optitype[1,7]) || optitype[1,7] == "") "" else optitype[1,7]
+      
       optitype_mhc_table <- optitype_mhc_table[order(optitype_mhc_table$Allele), , drop = FALSE]
       #----------------------------------------------------------
       for (i in 1:6) {
@@ -237,7 +294,7 @@ observeEvent(input$hla_typing_button,{
     if (length(arcashla_genotype) == 0) {
       output$hla_typing_table <- renderDataTable({
         datatable(
-          data.frame(Message = "Fail: No Typing Result."),
+          data.frame(Message = "HLA typing unsuccessful: Insufficient sequencing reads detected."),
           class = 'nowrap'
         )
       })
@@ -529,8 +586,20 @@ observeEvent(input$hla_typing_button,{
     system('sed "s/:Exon/_Exon/g" ./IGV/hlahd/hlahd_hla_reference_II_igv_colon.fasta > ./IGV/hlahd/hlahd_hla_reference_II_igv.fasta')
     
     # Create reference.fasta index
-    system("samtools faidx ./IGV/hlahd/hlahd_hla_reference_I_igv.fasta")
-    system("samtools faidx ./IGV/hlahd/hlahd_hla_reference_II_igv.fasta")
+    fasta_files <- c(
+      "./IGV/hlahd/hlahd_hla_reference_I_igv.fasta",
+      "./IGV/hlahd/hlahd_hla_reference_II_igv.fasta"
+    )
+    
+    # Function to check and index FASTA
+    index_fasta <- function(fasta_path) {
+      if (file.exists(fasta_path) && file.size(fasta_path) > 0) {
+        system(paste("samtools faidx", fasta_path))
+      }
+    }
+    
+    # Run indexing for each file
+    lapply(fasta_files, index_fasta)
     
     # Remove intermediate files
     file.remove(input_list_I)
@@ -572,7 +641,7 @@ observeEvent(input$hla_typing_button,{
     if (nrow(hlahd_stacked) == 0) {
       output$hla_typing_table <- renderDataTable({
         datatable(
-          data.frame(Message = "Fail: No Typing Result."),
+          data.frame(Message = "HLA typing unsuccessful: Insufficient sequencing reads detected."),
           class = 'nowrap'
         )
       })
@@ -749,18 +818,51 @@ observeEvent(input$hla_typing_button,{
     dir.create("./IGV/spechla", showWarnings = FALSE)
     
     # Insert into the reference file
-    system(paste("cp /SpecHLA/SpecHLA57/db/ref/hla.ref.extend.fa ", tmp_dir, "/IGV/spechla/specHLA_hla_reference.fasta",sep = ""))
-    system(paste("cp /SpecHLA/SpecHLA57/db/ref/hla.ref.extend.fa.fai ", tmp_dir, "/IGV/spechla/specHLA_hla_reference.fasta.fai",sep = ""))
+    # Copy the reference FASTA file if it exists
+    source_ref <- "/SpecHLA/SpecHLA57/db/ref/hla.ref.extend.fa"
+    dest_ref   <- file.path(tmp_dir, "IGV", "spechla", "specHLA_hla_reference.fasta")
+    if (file.exists(source_ref)) {
+      cp_cmd <- paste("cp", source_ref, dest_ref)
+      system(cp_cmd)
+    } else {
+      message("[Warning] Source reference file '", source_ref, "' does not exist. Skipping copy.")
+    }
+    
+    # Copy the reference index (.fai) file if it exists
+    source_fai <- "/SpecHLA/SpecHLA57/db/ref/hla.ref.extend.fa.fai"
+    dest_fai   <- file.path(tmp_dir, "IGV", "spechla", "specHLA_hla_reference.fasta.fai")
+    if (file.exists(source_fai)) {
+      cp_fai_cmd <- paste("cp", source_fai, dest_fai)
+      system(cp_fai_cmd)
+    } else {
+      message("[Warning] Source reference index file '", source_fai, "' does not exist. Skipping copy.")
+    }
     
     # Insert into the alignment results
-    system(paste("mv /sample1.merge.bam ", tmp_dir, "/IGV/spechla/sample1.merge.bam",sep = ""))
-    spechla <- read.table("./Output/spechla/sample1/hla.result.txt")
+    
+    # Move the BAM file if it exists
+    source_bam <- "/sample1.merge.bam"
+    dest_bam   <- file.path(tmp_dir, "IGV", "spechla", "sample1.merge.bam")
+    if (file.exists(source_bam)) {
+      mv_cmd <- paste("mv", source_bam, dest_bam)
+      system(mv_cmd)
+    } else {
+      message("[Warning] Source BAM file '", source_bam, "' does not exist. Skipping move.")
+    }
+    
+    # Read the result file if it exists
+    result_file <- "./Output/spechla/sample1/hla.result.txt"
+    if (file.exists(result_file)) {
+      spechla <- read.table(result_file)
+    } else {
+      message("[Warning] Result file '", result_file, "' does not exist. Skipping read.")
+    }
     
     # whether the dataframe is empty
     if (nrow(spechla) == 0) {
       output$hla_typing_table <- renderDataTable({
         datatable(
-          data.frame(Message = "Fail: No Typing Result."),
+          data.frame(Message = "HLA typing unsuccessful: Insufficient sequencing reads detected."),
           class = 'nowrap'
         )
       })
