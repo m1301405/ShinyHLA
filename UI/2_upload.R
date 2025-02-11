@@ -19,7 +19,7 @@ tabItem(tabName = "upload",
                           label = "",
                           accept = ".gz", 
                           multiple = TRUE, 
-                          placeholder = "Upload 2 paired-end fastq.gz files; max:15GB"),
+                          placeholder = "Please upload 2 paired-end FASTQ (.fastq.gz) files, with a maximum combined size of 5GB."),
                 actionButton(
                   inputId = "fastq_upload_button", 
                   label = "Upload",
@@ -31,7 +31,7 @@ tabItem(tabName = "upload",
                 fileInput(inputId = "bam_upload", 
                           label = "",
                           accept = ".bam", 
-                          placeholder = "Upload bam file; max:15GB"),
+                          placeholder = "Upload BAM file; maximum size: 5GB."),
                 actionButton(
                   inputId = "bam_upload_button", 
                   label = "Upload",
@@ -46,7 +46,7 @@ tabItem(tabName = "upload",
                     "Demo File", 
                     tooltip(
                       icon("info-circle"),
-                      title = "The demo uses HG00096 from the 1000 Genomes project on the GRCh38 dataset, pre-processed by extracting chr6 reads.",
+                      title = "The demo uses HG00160 from 1000 Genomes Project (GRCh38), with chr6 reads extracted.",
                       placement = "right"
                     )
                   ),
@@ -74,7 +74,7 @@ tabItem(tabName = "upload",
                     style = "margin-left: 10px;",
                     tooltip(
                       icon("info-circle"),
-                      title = "Calculate Total Depth, Coverage, and Mean Depth for each HLA allele to ensure high-quality input data and reliable results.",
+                      title = "Calculate Total Depth, Coverage, and Mean Depth for each HLA allele",
                       placement = "right"
                     )
                   )

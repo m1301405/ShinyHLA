@@ -26,7 +26,7 @@ library(kableExtra)
 library(formattable) 
 
 ## Upload file size limit
-options(shiny.maxRequestSize = 15000 * 1024^2)
+options(shiny.maxRequestSize = 5000 * 1024^2)
 
 ## Cascade filter
 HLA_typing <- read_excel("/root/shiny/HLA_package_list.xlsx")
