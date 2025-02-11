@@ -161,8 +161,9 @@ observeEvent(input$hla_typing_button,{
       optitype_mhc_table[6,1] <- if (is.na(optitype[1,7]) || optitype[1,7] == "") "" else optitype[1,7]
       
       optitype_mhc_table <- optitype_mhc_table[order(optitype_mhc_table$Allele), , drop = FALSE]
+      optitype_mhc_table <- optitype_mhc_table %>% filter(Allele != "")
       #----------------------------------------------------------
-      for (i in 1:6) {
+      for (i in 1:nrow(optitype_mhc_table)) {
         imgthla_version = input$imgthla
         seq = optitype_mhc_table[i,1]
         allele_type = substr(seq,1,1)
@@ -176,7 +177,7 @@ observeEvent(input$hla_typing_button,{
         optitype_mhc_table[i,2] <- system(cmd, intern = TRUE)
       }
       #----------------------------------------------------------
-      for (i in 1:6) {
+      for (i in 1:nrow(optitype_mhc_table)) {
         imgthla_version = input$imgthla
         seq = optitype_mhc_table[i,1]
         allele_type = substr(seq,1,1)
@@ -211,7 +212,7 @@ observeEvent(input$hla_typing_button,{
       })
       #----------------------------------------------------------
       sequence_file <- NULL
-      for (i in 1:6) {
+      for (i in 1:nrow(optitype_mhc_table)) {
         nucleotide <- paste(">", optitype_mhc_table[i, 1], "_nucleotide", sep = "")
         protein <- paste(">", optitype_mhc_table[i, 1], "_protein", sep = "")
         seqs <- rbind(rbind(nucleotide, optitype_mhc_table[i, 2]), rbind(protein, optitype_mhc_table[i, 3]))
