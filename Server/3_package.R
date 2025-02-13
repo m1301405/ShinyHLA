@@ -145,6 +145,33 @@ observeEvent(input$hla_typing_button,{
           class = 'nowrap'
         )
       })
+      
+      # Define file and directory paths
+      output_file = paste("./Output/optitype_",input$sequence,"_",input$imgthla,".txt",sep = "")
+      zip_folder_pathway = paste("./Download/optitype_",input$sequence,"_",input$imgthla,"_zip",sep = "")
+      output_file_zip_pathway <- paste("Download/optitype_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
+      merged_file = paste("./Pivotable/optitype_",input$sequence,"_",input$imgthla,"_merged.csv",sep = "")
+      
+      # Remove the previous successful typing file (output_file) if it exists
+      if (file.exists(output_file)) {
+        file.remove(output_file)
+      }
+      
+      # Remove the previous typing folder (zip_folder_pathway) if it exists
+      if (dir.exists(zip_folder_pathway)) {
+        unlink(zip_folder_pathway, recursive = TRUE)
+      }
+      
+      # Remove the previous zip file (output_file_zip_pathway) if it exists
+      if (file.exists(output_file_zip_pathway)) {
+        file.remove(output_file_zip_pathway)
+      }
+      
+      # Remove the previous successful typing file (merged_file) if it exists
+      if (file.exists(merged_file)) {
+        file.remove(merged_file)
+      }
+      
     } else { 
       optitype_mhc_table <- data.frame(
         Allele = character(6),
@@ -299,6 +326,33 @@ observeEvent(input$hla_typing_button,{
           class = 'nowrap'
         )
       })
+      
+      # Define file and directory paths
+      output_file = paste("./Output/arcashla_",input$sequence,"_",input$imgthla,".txt",sep = "")
+      zip_folder_pathway = paste("./Download/arcashla_",input$sequence,"_",input$imgthla,"_zip",sep = "")
+      output_file_zip_pathway <- paste("Download/arcashla_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
+      merged_file = paste("./Pivotable/arcashla_",input$sequence,"_",input$imgthla,"_merged.csv",sep = "")
+      
+      # Remove the previous successful typing file (output_file) if it exists
+      if (file.exists(output_file)) {
+        file.remove(output_file)
+      }
+      
+      # Remove the previous typing folder (zip_folder_pathway) if it exists
+      if (dir.exists(zip_folder_pathway)) {
+        unlink(zip_folder_pathway, recursive = TRUE)
+      }
+      
+      # Remove the previous zip file (output_file_zip_pathway) if it exists
+      if (file.exists(output_file_zip_pathway)) {
+        file.remove(output_file_zip_pathway)
+      }
+      
+      # Remove the previous successful typing file (merged_file) if it exists
+      if (file.exists(merged_file)) {
+        file.remove(merged_file)
+      }
+      
     } else { 
       arcashla_mhc_A <- arcashla_genotype[["A"]]
       arcashla_mhc_B <- arcashla_genotype[["B"]]
@@ -645,6 +699,34 @@ observeEvent(input$hla_typing_button,{
           data.frame(Message = "HLA typing unsuccessful: Insufficient sequencing reads detected."),
           class = 'nowrap'
         )
+        
+        # Define file and directory paths
+        output_file = paste("./Output/hlahd_",input$sequence,"_",input$imgthla,".txt",sep = "")
+        zip_folder_pathway = paste("./Download/hlahd_",input$sequence,"_",input$imgthla,"_zip",sep = "")
+        output_file_zip_pathway <- paste("Download/hlahd_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
+        merged_file = paste("./Pivotable/hlahd_",input$sequence,"_",input$imgthla,"_merged.csv",sep = "")
+        
+        
+        # Remove the previous successful typing file (output_file) if it exists
+        if (file.exists(output_file)) {
+          file.remove(output_file)
+        }
+        
+        # Remove the previous typing folder (zip_folder_pathway) if it exists
+        if (dir.exists(zip_folder_pathway)) {
+          unlink(zip_folder_pathway, recursive = TRUE)
+        }
+        
+        # Remove the previous zip file (output_file_zip_pathway) if it exists
+        if (file.exists(output_file_zip_pathway)) {
+          file.remove(output_file_zip_pathway)
+        }
+        
+        # Remove the previous successful typing file (merged_file) if it exists
+        if (file.exists(merged_file)) {
+          file.remove(merged_file)
+        }
+        
       })
     } else {
       hlahd_mhc_table <- data.frame(
@@ -866,6 +948,33 @@ observeEvent(input$hla_typing_button,{
           data.frame(Message = "HLA typing unsuccessful: Insufficient sequencing reads detected."),
           class = 'nowrap'
         )
+        
+        # Define file and directory paths
+        output_file = paste("./Output/spechla_",input$sequence,"_",input$imgthla,".txt",sep = "")
+        zip_folder_pathway = paste("./Download/spechla_",input$sequence,"_",input$imgthla,"_zip",sep = "")
+        output_file_zip_pathway <- paste("Download/spechla_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
+        merged_file = paste("./Pivotable/spechla_",input$sequence,"_",input$imgthla,"_merged.csv",sep = "")
+        
+        # Remove the previous successful typing file (output_file) if it exists
+        if (file.exists(output_file)) {
+          file.remove(output_file)
+        }
+        
+        # Remove the previous typing folder (zip_folder_pathway) if it exists
+        if (dir.exists(zip_folder_pathway)) {
+          unlink(zip_folder_pathway, recursive = TRUE)
+        }
+        
+        # Remove the previous zip file (output_file_zip_pathway) if it exists
+        if (file.exists(output_file_zip_pathway)) {
+          file.remove(output_file_zip_pathway)
+        }
+        
+        # Remove the previous successful typing file (merged_file) if it exists
+        if (file.exists(merged_file)) {
+          file.remove(merged_file)
+        }
+        
       })
     } else {
       spechla_mhc_table <- data.frame(

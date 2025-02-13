@@ -99,7 +99,7 @@ observeEvent(input$igv_reference, {
     fastaindex_path_h_i <- file.path(directory_h, "hlahd_hla_reference_I_igv.fasta.fai")
     
     if (!file.exists(fasta_path_h_i) || !file.exists(fastaindex_path_h_i)) {
-      shinyalert("Error", "Required FASTA or index file is missing for HLA-HD Class I.", type = "error")
+      shinyalert("Error", "Required FASTA or index file is missing for HLA-HD Class I and II.", type = "error")
       w$hide()
       return()
     }
