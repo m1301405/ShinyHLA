@@ -151,6 +151,7 @@ observeEvent(input$hla_typing_button,{
       zip_folder_pathway = paste("./Download/optitype_",input$sequence,"_",input$imgthla,"_zip",sep = "")
       output_file_zip_pathway <- paste("Download/optitype_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
       merged_file = paste("./Pivotable/optitype_",input$sequence,"_",input$imgthla,"_merged.csv",sep = "")
+      igv_folder <- "./IGV/optitype"
       
       # Remove the previous successful typing file (output_file) if it exists
       if (file.exists(output_file)) {
@@ -171,6 +172,12 @@ observeEvent(input$hla_typing_button,{
       if (file.exists(merged_file)) {
         file.remove(merged_file)
       }
+      
+      # Remove the previous successful typing folder (igv_folder) if it exists
+      if (dir.exists(igv_folder)) {
+        unlink(igv_folder, recursive = TRUE)
+      }
+      
       
     } else { 
       optitype_mhc_table <- data.frame(
@@ -706,6 +713,7 @@ observeEvent(input$hla_typing_button,{
       zip_folder_pathway = paste("./Download/hlahd_",input$sequence,"_",input$imgthla,"_zip",sep = "")
       output_file_zip_pathway <- paste("Download/hlahd_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
       merged_file = paste("./Pivotable/hlahd_",input$sequence,"_",input$imgthla,"_merged.csv",sep = "")
+      igv_folder <- "./IGV/hlahd"
       
       # Remove the previous successful typing file (output_file) if it exists
       if (file.exists(output_file)) {
@@ -726,6 +734,12 @@ observeEvent(input$hla_typing_button,{
       if (file.exists(merged_file)) {
         file.remove(merged_file)
       }
+      
+      # Remove the previous successful typing folder (igv_folder) if it exists
+      if (dir.exists(igv_folder)) {
+        unlink(igv_folder, recursive = TRUE)
+      }
+      
     } else {
       hlahd_mhc_table <- data.frame(
         Allele = character(nrow(hlahd_stacked)),
@@ -953,6 +967,7 @@ observeEvent(input$hla_typing_button,{
       zip_folder_pathway = paste("./Download/spechla_",input$sequence,"_",input$imgthla,"_zip",sep = "")
       output_file_zip_pathway <- paste("Download/spechla_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
       merged_file = paste("./Pivotable/spechla_",input$sequence,"_",input$imgthla,"_merged.csv",sep = "")
+      igv_folder <- "./IGV/spechla"
       
       # Remove the previous successful typing file (output_file) if it exists
       if (file.exists(output_file)) {
@@ -972,6 +987,11 @@ observeEvent(input$hla_typing_button,{
       # Remove the previous successful typing file (merged_file) if it exists
       if (file.exists(merged_file)) {
         file.remove(merged_file)
+      }
+      
+      # Remove the previous successful typing folder (igv_folder) if it exists
+      if (dir.exists(igv_folder)) {
+        unlink(igv_folder, recursive = TRUE)
       }
       
     } else {

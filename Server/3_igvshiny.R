@@ -93,6 +93,8 @@ observeEvent(input$igv_reference, {
       igvShiny(options_values$optitype_igv_options)
     })
     
+    shinyalert("Success", "OptiType reference uploaded successfully.", type = "success")
+    
   } else if (package_value() == "HLA-HD") {
     # HLA-HD Class I
     fasta_path_h_i <- file.path(directory_h, "hlahd_hla_reference_I_igv.fasta")
@@ -152,6 +154,8 @@ observeEvent(input$igv_reference, {
       igvShiny(options_values$hlahd_igv_ii_options)
     })
     
+    shinyalert("Success", "HLA-HD reference uploaded successfully.", type = "success")
+    
   } else if (package_value() == "SpecHLA") {
     # SpecHLA
     fasta_path_s <- file.path(directory_s, "specHLA_hla_reference.fasta")
@@ -181,6 +185,8 @@ observeEvent(input$igv_reference, {
     output$alignment_igv <- renderIgvShiny({
       igvShiny(options_values$spechla_igv_options)
     })
+    
+    shinyalert("Success", "SpecHLA reference uploaded successfully.", type = "success")
   }
   
   w$hide() # Hide the waiter
@@ -192,6 +198,11 @@ load_and_show_region_optitype <- function(igv_id) {
   bam_file <- file.path(directory_o, "optitype_merge_filtered.bam")
   bam_name <- "OptiType Alignment File"
   
+  if (!file.exists(bam_file)) {
+    shinyalert("Error", paste("BAM File for OptiType not found!"), type = "error")
+    return()
+  }
+  
   x <- readGAlignments(bam_file, param = Rsamtools::ScanBamParam(what = "seq"))
   loadBamTrackFromLocalData(session, id = igv_id, trackName = bam_name, data = x)
   showGenomicRegion(session, id = igv_id, region = options_values$optitype_igv_options)
@@ -201,6 +212,11 @@ load_and_show_region_optitype <- function(igv_id) {
 load_and_show_region_hlahd_I <- function(igv_id) {
   bam_file <- file.path(directory_h, "sample1.modified.bam")
   bam_name <- "HLA-HD Class I Alignment File"
+  
+  if (!file.exists(bam_file)) {
+    shinyalert("Error", paste("BAM File for HLA-HD Class I not found!"), type = "error")
+    return()
+  }
   
   x <- readGAlignments(bam_file, param = Rsamtools::ScanBamParam(what = "seq"))
   loadBamTrackFromLocalData(session, id = igv_id, trackName = bam_name, data = x)
@@ -212,6 +228,11 @@ load_and_show_region_hlahd_II <- function(igv_id) {
   bam_file <- file.path(directory_h, "sample1.modified.bam")
   bam_name <- "HLA-HD Class II Alignment File"
   
+  if (!file.exists(bam_file)) {
+    shinyalert("Error", paste("BAM File for HLA-HD Class II not found!"), type = "error")
+    return()
+  }
+  
   x <- readGAlignments(bam_file, param = Rsamtools::ScanBamParam(what = "seq"))
   loadBamTrackFromLocalData(session, id = igv_id, trackName = bam_name, data = x)
   showGenomicRegion(session, id = igv_id, region = options_values$hlahd_igv_ii_options)
@@ -221,6 +242,11 @@ load_and_show_region_hlahd_II <- function(igv_id) {
 load_and_show_region_spechla <- function(igv_id) {
   bam_file <- file.path(directory_s, "sample1.merge.bam")
   bam_name <- "SpecHLA Alignment File"
+  
+  if (!file.exists(bam_file)) {
+    shinyalert("Error", paste("BAM File for SpecHLA not found!"), type = "error")
+    return()
+  }
   
   x <- readGAlignments(bam_file, param = Rsamtools::ScanBamParam(what = "seq"))
   loadBamTrackFromLocalData(session, id = igv_id, trackName = bam_name, data = x)
@@ -235,15 +261,29 @@ observeEvent(input$igv_bam_button, {
   w$show()
   
   if (package_value() == "OptiType") {
+    success_optitype <- file.exists(file.path(directory_o, "optitype_merge_filtered.bam"))
     load_and_show_region_optitype("alignment_igv")
-    shinyalert("Success", paste("BAM File uploaded successfully for OptiType."), type = "success")
+    
+    if (success_optitype) {
+      shinyalert("Success", paste("BAM File uploaded successfully for OptiType."), type = "success")
+    }
   } else if (package_value() == "HLA-HD") {
+    success_hla <- file.exists(file.path(directory_h, "sample1.modified.bam"))
+
     load_and_show_region_hlahd_I("alignment_igv")
     load_and_show_region_hlahd_II("alignment_ii_igv")
-    shinyalert("Success", paste("BAM File uploaded successfully for HLA-HD."), type = "success")
+    
+    if (success_hla) {
+      shinyalert("Success", paste("BAM File uploaded successfully for HLA-HD."), type = "success")
+    }
+    
   } else if (package_value() == "SpecHLA") {
+    success_spechla <- file.exists(file.path(directory_s, "sample1.merge.bam"))
     load_and_show_region_spechla("alignment_igv")
-    shinyalert("Success", paste("BAM File uploaded successfully for SpecHLA."), type = "success")
+    
+    if (success_spechla) {
+      shinyalert("Success", paste("BAM File uploaded successfully for SpecHLA."), type = "success")
+    }
   }
   
   w$hide()
