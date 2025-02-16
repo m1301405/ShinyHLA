@@ -25,25 +25,25 @@ observe({
   updateSelectInput(session, "package", choices = filtered_package())
 })
 
-# 如果需要確保第二個選項 imgthla 更新時，第三個選項 package 也會自動更新，可以這樣處理
+# If you need to ensure that when the second selection imgthla is updated, 
+# the third selection package is also automatically updated, you can handle it this way
 observeEvent(input$imgthla, {
   req(input$imgthla)
   updateSelectInput(session, "package", choices = filtered_package())
 })
 
-tmp_dir <- tempdir()  # 获取临时目录
+tmp_dir <- tempdir()  # Get the temporary directory
 
 observeEvent(input$step2, {
-  # 定义文件路径
+  # Define file paths
   file1 <- file.path(tmp_dir, "Input", "sample1_1.fastq.gz")
   file2 <- file.path(tmp_dir, "Input", "sample1_2.fastq.gz")
   
-  # 检查文件是否存在
+  # Check if files exist
   if (file.exists(file1) && file.exists(file2)) {
     updateTabItems(session, "my_tabs", "hla")
   } else {
-    # 如果文件不存在，显示简单的警告信息
+    # If files do not exist, display a simple warning message
     shinyalert("Error", "Please upload the sequencing file before the HLA typing step.", type = "error")
   }
 })
-

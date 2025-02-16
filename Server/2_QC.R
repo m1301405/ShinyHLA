@@ -27,7 +27,7 @@ coverage_to_pie <- function(value) {
 #====================================
 observeEvent(input$coverage_button, {
   tmp_dir <- tempdir()
-  qc_dir <- file.path(tmp_dir, "QC") # 定義 QC 資料夾路徑
+  qc_dir <- file.path(tmp_dir, "QC")
   
   # Create waiting animation
   w <- Waiter$new(
