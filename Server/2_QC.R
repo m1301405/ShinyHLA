@@ -40,7 +40,7 @@ observeEvent(input$coverage_button, {
   # Calculate RNA-seq coverage
   ## Define variables for input file, gene annotation file, and output directory
   
-  input_bam <- file.path(tmp_dir, "BAM", "0.bam")
+  input_bam <- file.path(tmp_dir, "BAM", "sample.bam")
   annotation_gff <- "/root/shiny/PanDepth/hg38/gencode.v38.annotation.gff3"
   output_dir <- file.path(tmp_dir, "QC", "hla_coverage")
   

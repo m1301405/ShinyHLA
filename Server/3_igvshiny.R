@@ -25,7 +25,7 @@ hg38_igv_ii_options <- parseAndValidateGenomeSpec(
   initialLocus = c("HLA-DPA1", "HLA-DPB1", "HLA-DQA1", "HLA-DQB1", "HLA-DRB1"))
 
 load_and_show_region_hg38_I <- function(igv_id) {
-  bam_file <- file.path(tmp_dir, "BAM", "0.bam")  
+  bam_file <- file.path(tmp_dir, "BAM", "sample.bam")  
   bam_name <- "Bam file"
   
   if (file.exists(bam_file)) {
@@ -35,7 +35,7 @@ load_and_show_region_hg38_I <- function(igv_id) {
   }
 }
 load_and_show_region_hg38_II <- function(igv_id) {
-  bam_file <- file.path(tmp_dir, "BAM", "0.bam")  
+  bam_file <- file.path(tmp_dir, "BAM", "sample.bam")  
   bam_name <- "bam file"
   
   if (file.exists(bam_file)) {
@@ -210,7 +210,7 @@ load_and_show_region_optitype <- function(igv_id) {
 
 ### HLA-HD Class I
 load_and_show_region_hlahd_I <- function(igv_id) {
-  bam_file <- file.path(directory_h, "sample1.modified.bam")
+  bam_file <- file.path(directory_h, "sample.modified.bam")
   bam_name <- "HLA-HD Class I Alignment File"
   
   if (!file.exists(bam_file)) {
@@ -225,7 +225,7 @@ load_and_show_region_hlahd_I <- function(igv_id) {
 
 ### HLA-HD Class II
 load_and_show_region_hlahd_II <- function(igv_id) {
-  bam_file <- file.path(directory_h, "sample1.modified.bam")
+  bam_file <- file.path(directory_h, "sample.modified.bam")
   bam_name <- "HLA-HD Class II Alignment File"
   
   if (!file.exists(bam_file)) {
@@ -240,7 +240,7 @@ load_and_show_region_hlahd_II <- function(igv_id) {
 
 ### SpecHLA
 load_and_show_region_spechla <- function(igv_id) {
-  bam_file <- file.path(directory_s, "sample1.merge.bam")
+  bam_file <- file.path(directory_s, "sample.merge.bam")
   bam_name <- "SpecHLA Alignment File"
   
   if (!file.exists(bam_file)) {
@@ -268,7 +268,7 @@ observeEvent(input$igv_bam_button, {
       shinyalert("Success", paste("BAM File uploaded successfully for OptiType."), type = "success")
     }
   } else if (package_value() == "HLA-HD") {
-    success_hla <- file.exists(file.path(directory_h, "sample1.modified.bam"))
+    success_hla <- file.exists(file.path(directory_h, "sample.modified.bam"))
 
     load_and_show_region_hlahd_I("alignment_igv")
     load_and_show_region_hlahd_II("alignment_ii_igv")
@@ -278,7 +278,7 @@ observeEvent(input$igv_bam_button, {
     }
     
   } else if (package_value() == "SpecHLA") {
-    success_spechla <- file.exists(file.path(directory_s, "sample1.merge.bam"))
+    success_spechla <- file.exists(file.path(directory_s, "sample.merge.bam"))
     load_and_show_region_spechla("alignment_igv")
     
     if (success_spechla) {
@@ -300,9 +300,9 @@ observeEvent(input$hg38_igv_i_bam_button, {
   
   if (file.exists(bam_file)) {
     load_and_show_region_hg38_I("hg38_igv_i")
-    shinyalert("Success", paste("BAM File uploaded successfully."), type = "success")
+    shinyalert("Success", paste("BAM File Uploaded Successfully."), type = "success")
   } else {
-    shinyalert("Error", paste("Please upload the BAM file!"), type = "error")
+    shinyalert("Error", paste("Please Upload BAM File!"), type = "error")
   }
   
   w$hide() 
@@ -319,9 +319,9 @@ observeEvent(input$hg38_igv_ii_bam_button, {
   
   if (file.exists(bam_file)) {
     load_and_show_region_hg38_II("hg38_igv_ii")
-    shinyalert("Success", paste("BAM File uploaded successfully."), type = "success")
+    shinyalert("Success", paste("BAM File Uploaded Successfully."), type = "success")
   } else {
-    shinyalert("Error", paste("Please upload the BAM file!"), type = "error")
+    shinyalert("Error", paste("Please Upload BAM File!"), type = "error")
   }
   
   w$hide() 

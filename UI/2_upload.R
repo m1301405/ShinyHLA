@@ -19,7 +19,7 @@ tabItem(tabName = "upload",
                           label = "",
                           accept = ".gz", 
                           multiple = TRUE, 
-                          placeholder = "Please upload 2 paired-end FASTQ (.fastq.gz) files, with a maximum combined size of 5GB."),
+                          placeholder = "Upload 2 paired-end fastq.gz files; Total max: 10GB"),
                 actionButton(
                   inputId = "fastq_upload_button", 
                   label = "Upload",
@@ -31,7 +31,7 @@ tabItem(tabName = "upload",
                 fileInput(inputId = "bam_upload", 
                           label = "",
                           accept = ".bam", 
-                          placeholder = "Upload BAM file; maximum size: 5GB."),
+                          placeholder = "Upload bam file; max: 10GB"),
                 actionButton(
                   inputId = "bam_upload_button", 
                   label = "Upload",
@@ -46,7 +46,7 @@ tabItem(tabName = "upload",
                     "Demo File", 
                     tooltip(
                       icon("info-circle"),
-                      title = "The demo uses HG00160 from 1000 Genomes Project (GRCh38), with chr6 reads extracted.",
+                      title = "Demo uses HG00096 data: WES (aligned BAM) and RNA-Seq (raw FASTQ) for HLA typing.",
                       placement = "right"
                     )
                   ),
@@ -61,7 +61,7 @@ tabItem(tabName = "upload",
                 )
               ),
               conditionalPanel(
-                condition = "((input.bam_upload_button && input.upload_choice === 'bam') || (input.demo_upload_button && input.upload_choice === 'demo'))",
+                condition = "output.show_qc_button",
                 tags$hr(style = "border-top: 2px solid #000;"),
                 div(
                   style = "display: flex; align-items: center;",
@@ -74,7 +74,7 @@ tabItem(tabName = "upload",
                     style = "margin-left: 10px;",
                     tooltip(
                       icon("info-circle"),
-                      title = "Calculate Total Depth, Coverage, and Mean Depth for each HLA allele",
+                      title = "Check total depth, coverage, and mean depth per HLA allele to ensure data quality.",
                       placement = "right"
                     )
                   )
@@ -89,16 +89,27 @@ tabItem(tabName = "upload",
             conditionalPanel(
               condition = "input.fastq_upload_button >= 1 || input.bam_upload_button >= 1 || input.demo_upload_button >=1",
               div(
-                style = "display: flex; justify-content: space-between; align-items: center; padding: 10px;",
-                actionButton(
-                  inputId = "step2",
-                  label = "Next step: HLA typing",
-                  icon = icon("arrow-circle-right"))
-              )
-            ),
-            tags$div(style = "height: 20px;"),
-          )
-        ),
+                style = "display: flex; align-items: center; padding: 10px;",
+                div(
+                  style = "display: flex; align-items: center;",
+                  actionButton(
+                    inputId = "step2",
+                    label = "Next step: HLA typing",
+                    icon = icon("arrow-circle-right")
+                  ),
+                  div(
+                    style = "margin-left: 8px;",
+                    tooltip(
+                      icon("exclamation-triangle"),
+                      title = "Only the most recently uploaded file is retained for analysis. To re-analyze a previously uploaded file, please re-upload it.",
+                      placement = "right")
+                    )
+                  )
+                )
+              ),
+            tags$div(style = "height: 20px;")
+            )
+          ),
         fluidRow(
           column(
             width = 12,

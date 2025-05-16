@@ -25,8 +25,6 @@ observe({
   updateSelectInput(session, "package", choices = filtered_package())
 })
 
-# If you need to ensure that when the second selection imgthla is updated, 
-# the third selection package is also automatically updated, you can handle it this way
 observeEvent(input$imgthla, {
   req(input$imgthla)
   updateSelectInput(session, "package", choices = filtered_package())
@@ -35,15 +33,16 @@ observeEvent(input$imgthla, {
 tmp_dir <- tempdir()  # Get the temporary directory
 
 observeEvent(input$step2, {
-  # Define file paths
-  file1 <- file.path(tmp_dir, "Input", "sample1_1.fastq.gz")
-  file2 <- file.path(tmp_dir, "Input", "sample1_2.fastq.gz")
+  file1 <- file.path(tmp_dir, "Input", "sample_1.fastq.gz")
+  file2 <- file.path(tmp_dir, "Input", "sample_2.fastq.gz")
   
-  # Check if files exist
   if (file.exists(file1) && file.exists(file2)) {
     updateTabItems(session, "my_tabs", "hla")
   } else {
-    # If files do not exist, display a simple warning message
-    shinyalert("Error", "Please upload the sequencing file before the HLA typing step.", type = "error")
+    shinyalert(
+      title = "Error",
+      text = "Please upload the correct number and format of sequencing files before the HLA typing step.",
+      type = "error"
+    )
   }
 })

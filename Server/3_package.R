@@ -31,9 +31,9 @@ observeEvent(input$hla_typing_button,{
     dir.create("./Output/optitype", showWarnings = FALSE)
     #----------------------------------------------------------
     if (input$sequence == "WES") {
-      system("OptiTypePipeline.py -i ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz -d -p sample1 -o ./Output/optitype")
+      system("OptiTypePipeline.py -i ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -d -p sample -o ./Output/optitype")
     }else if (input$sequence == "RNA-seq") {
-      system("OptiTypePipeline.py -i ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz -r -p sample1 -o ./Output/optitype")
+      system("OptiTypePipeline.py -i ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -r -p sample -o ./Output/optitype")
     }
     #----------------------------------------------------------
     if (dir.exists("./IGV/optitype")) {
@@ -136,7 +136,7 @@ observeEvent(input$hla_typing_button,{
       message("[Warning] IGV FASTA file does not exist. Cannot create index.")
     }
     #----------------------------------------------------------
-    optitype = read.table(file = "./Output/optitype/sample1_result.tsv", sep = '\t', header = TRUE)
+    optitype = read.table(file = "./Output/optitype/sample_result.tsv", sep = '\t', header = TRUE)
     # whether the dataframe is empty
     if (nrow(optitype) == 0) {
       output$hla_typing_table <- renderDataTable({
@@ -299,30 +299,30 @@ observeEvent(input$hla_typing_button,{
     dir.create("./Output/arcashla", showWarnings = FALSE)
     #----------------------------------------------------------
     if (input$imgthla == "v3.14.0") {
-      system(paste("/arcasHLA/arcasHLA genotype14 ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype14 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
     } else if (input$imgthla == "v3.49.0") {
-      system(paste("/arcasHLA/arcasHLA genotype49 ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype49 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
     } else if (input$imgthla == "v3.50.0") {
-      system(paste("/arcasHLA/arcasHLA genotype50 ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype50 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
     } else if (input$imgthla == "v3.51.0") {
-      system(paste("/arcasHLA/arcasHLA genotype51 ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype51 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
     } else if (input$imgthla == "v3.52.0") {
-      system(paste("/arcasHLA/arcasHLA genotype52 ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype52 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
     } else if (input$imgthla == "v3.53.0") {
-      system(paste("/arcasHLA/arcasHLA genotype53 ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype53 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
     } else if (input$imgthla == "v3.54.0") {
-      system(paste("/arcasHLA/arcasHLA genotype54 ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype54 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
     } else if (input$imgthla == "v3.55.0") {
-      system(paste("/arcasHLA/arcasHLA genotype55 ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype55 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
     } else if (input$imgthla == "v3.56.0") {
-      system(paste("/arcasHLA/arcasHLA genotype56 ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype56 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
     } else if (input$imgthla == "v3.57.0") {
-      system(paste("/arcasHLA/arcasHLA genotype57 ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype57 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
     } else if (input$imgthla == "v3.58.0") {
-      system(paste("/arcasHLA/arcasHLA genotype58 ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype58 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
     }
     #----------------------------------------------------------
-    arcashla_genotype_path <- paste("./Output/arcashla/sample1_1.genotype.json",sep = "")
+    arcashla_genotype_path <- paste("./Output/arcashla/sample_1.genotype.json",sep = "")
     arcashla_genotype <- fromJSON(file = arcashla_genotype_path)
     #----------------------------------------------------------
     # whether the dataframe is empty
@@ -529,27 +529,27 @@ observeEvent(input$hla_typing_button,{
     dir.create("./Output/hlahd", showWarnings = FALSE)
     #----------------------------------------------------------
     if (input$imgthla == "v3.14.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary14 sample1 ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary14 sample ./Output/hlahd",sep = ""))
     } else if (input$imgthla == "v3.49.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary49 sample1 ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary49 sample ./Output/hlahd",sep = ""))
     } else if (input$imgthla == "v3.50.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary50 sample1 ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary50 sample ./Output/hlahd",sep = ""))
     } else if (input$imgthla == "v3.51.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary51 sample1 ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary51 sample ./Output/hlahd",sep = ""))
     } else if (input$imgthla == "v3.52.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary52 sample1 ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary52 sample ./Output/hlahd",sep = ""))
     } else if (input$imgthla == "v3.53.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary53 sample1 ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary53 sample ./Output/hlahd",sep = ""))
     } else if (input$imgthla == "v3.54.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary54 sample1 ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary54 sample ./Output/hlahd",sep = ""))
     } else if (input$imgthla == "v3.55.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary55 sample1 ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary55 sample ./Output/hlahd",sep = ""))
     } else if (input$imgthla == "v3.56.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary56 sample1 ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary56 sample ./Output/hlahd",sep = ""))
     } else if (input$imgthla == "v3.57.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary57 sample1 ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary57 sample ./Output/hlahd",sep = ""))
     } else if (input$imgthla == "v3.58.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample1_1.fastq.gz ./Input/sample1_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary58 sample1 ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary58 sample ./Output/hlahd",sep = ""))
     }
     #-----------------------------------------------------------
     if (dir.exists("./IGV/hlahd")) {
@@ -558,35 +558,35 @@ observeEvent(input$hla_typing_button,{
     dir.create("./IGV/hlahd", showWarnings = FALSE)
     #----------------------------------------------------------
     # Merge two SAM files
-    system("cat ./Output/hlahd/sample1/mapfile/sample1.all.R1.pmap.NM.sam ./Output/hlahd/sample1/mapfile/sample1.all.R2.pmap.NM.sam > ./IGV/hlahd/sample1.all.merged.sam")
+    system("cat ./Output/hlahd/sample/mapfile/sample.all.R1.pmap.NM.sam ./Output/hlahd/sample/mapfile/sample.all.R2.pmap.NM.sam > ./IGV/hlahd/sample.all.merged.sam")
     
     # Extract headers and move them to the beginning of the file
-    system("grep '^@' ./IGV/hlahd/sample1.all.merged.sam > ./IGV/hlahd/header.sam")
-    system("grep -v '^@' ./IGV/hlahd/sample1.all.merged.sam > ./IGV/hlahd/body.sam")
-    system("cat ./IGV/hlahd/header.sam ./IGV/hlahd/body.sam > ./IGV/hlahd/sample1.all.corrected.merged.sam")
+    system("grep '^@' ./IGV/hlahd/sample.all.merged.sam > ./IGV/hlahd/header.sam")
+    system("grep -v '^@' ./IGV/hlahd/sample.all.merged.sam > ./IGV/hlahd/body.sam")
+    system("cat ./IGV/hlahd/header.sam ./IGV/hlahd/body.sam > ./IGV/hlahd/sample.all.corrected.merged.sam")
     
     # Keep only the first occurrence of each sequence name and remove duplicates
-    system("awk '!seen[$0]++' ./IGV/hlahd/sample1.all.corrected.merged.sam > ./IGV/hlahd/sample1.all.rmdup.sam")
+    system("awk '!seen[$0]++' ./IGV/hlahd/sample.all.corrected.merged.sam > ./IGV/hlahd/sample.all.rmdup.sam")
     
     # Convert the merged SAM file to BAM format
-    system("samtools view -Sb ./IGV/hlahd/sample1.all.rmdup.sam > ./IGV/hlahd/sample1.all.rmdup.bam")
+    system("samtools view -Sb ./IGV/hlahd/sample.all.rmdup.sam > ./IGV/hlahd/sample.all.rmdup.bam")
     
     # Sort the merged BAM file
-    system("samtools sort -o ./IGV/hlahd/sample1.all.sorted.bam ./IGV/hlahd/sample1.all.rmdup.bam")
+    system("samtools sort -o ./IGV/hlahd/sample.all.sorted.bam ./IGV/hlahd/sample.all.rmdup.bam")
     
     # Remove intermediate files
-    file.remove("./IGV/hlahd/sample1.all.merged.sam")
-    file.remove("./IGV/hlahd/sample1.all.corrected.merged.sam")
-    file.remove("./IGV/hlahd/sample1.all.rmdup.sam")
-    file.remove("./IGV/hlahd/sample1.all.rmdup.bam")
+    file.remove("./IGV/hlahd/sample.all.merged.sam")
+    file.remove("./IGV/hlahd/sample.all.corrected.merged.sam")
+    file.remove("./IGV/hlahd/sample.all.rmdup.sam")
+    file.remove("./IGV/hlahd/sample.all.rmdup.bam")
     file.remove("./IGV/hlahd/header.sam")
     file.remove("./IGV/hlahd/body.sam")
     
     # Extract exon names matched with the reference from the mapping results as a list
-    system("samtools view ./IGV/hlahd/sample1.all.sorted.bam | cut -f 3 | grep -E '^[ABC]:Exon' > ./IGV/hlahd/hlahd_mhc_i_list.txt")
-    system("samtools view ./IGV/hlahd/sample1.all.sorted.bam | cut -f 3 | grep -E '^D(PA|PB|QA|QB|RB)1:Exon' > ./IGV/hlahd/hlahd_mhc_ii_list.txt")
+    system("samtools view ./IGV/hlahd/sample.all.sorted.bam | cut -f 3 | grep -E '^[ABC]:Exon' > ./IGV/hlahd/hlahd_mhc_i_list.txt")
+    system("samtools view ./IGV/hlahd/sample.all.sorted.bam | cut -f 3 | grep -E '^D(PA|PB|QA|QB|RB)1:Exon' > ./IGV/hlahd/hlahd_mhc_ii_list.txt")
     
-    # Create hla_reference.fasta for sample1.all.sorted.bam
+    # Create hla_reference.fasta for sample.all.sorted.bam
     input_list_I <- file.path(getwd(), "IGV/hlahd/hlahd_mhc_i_list.txt")
     input_list_II <- file.path(getwd(), "IGV/hlahd/hlahd_mhc_ii_list.txt")
     #----------------------------------------------------------
@@ -631,13 +631,13 @@ observeEvent(input$hla_typing_button,{
                  sep = " "))
     
     # Step 1: Modify BAM file using samtools and sed
-    system('samtools view -h ./IGV/hlahd/sample1.all.sorted.bam | 
+    system('samtools view -h ./IGV/hlahd/sample.all.sorted.bam | 
        sed "s/A:Exon/A_Exon/g; s/B:Exon/B_Exon/g; s/C:Exon/C_Exon/g; s/DPA1:Exon/DPA1_Exon/g; 
             s/DPB1:Exon/DPB1_Exon/g; s/DQA1:Exon/DQA1_Exon/g; s/DQB1:Exon/DQB1_Exon/g; 
-            s/DRB1:Exon/DRB1_Exon/g" > ./IGV/hlahd/sample1.modified.sam')
+            s/DRB1:Exon/DRB1_Exon/g" > ./IGV/hlahd/sample.modified.sam')
     
     # Step 2: Convert modified SAM file back to BAM format
-    system('samtools view -Sb ./IGV/hlahd/sample1.modified.sam > ./IGV/hlahd/sample1.modified.bam')
+    system('samtools view -Sb ./IGV/hlahd/sample.modified.sam > ./IGV/hlahd/sample.modified.bam')
     
     # Step 3: Modify HLA reference I FASTA file by replacing ':' with '_'
     system('mv ./IGV/hlahd/hlahd_hla_reference_I_igv.fasta ./IGV/hlahd/hlahd_hla_reference_I_igv_colon.fasta')
@@ -666,21 +666,21 @@ observeEvent(input$hla_typing_button,{
     # Remove intermediate files
     file.remove(input_list_I)
     file.remove(input_list_II)
-    file.remove("./IGV/hlahd/sample1.all.sorted.bam")
-    file.remove("./IGV/hlahd/sample1.modified.sam")
+    file.remove("./IGV/hlahd/sample.all.sorted.bam")
+    file.remove("./IGV/hlahd/sample.modified.sam")
     file.remove("./IGV/hlahd/hlahd_hla_reference_I_igv_colon.fasta")
     file.remove("./IGV/hlahd/hlahd_hla_reference_II_igv_colon.fasta")
     #-----------------------------------------------------------
-    system("head -n 8 ./Output/hlahd/sample1/result/sample1_final.result.txt > ./Output/hlahd/sample1_final_mhc.result.txt")
+    system("head -n 8 ./Output/hlahd/sample/result/sample_final.result.txt > ./Output/hlahd/sample_final_mhc.result.txt")
     
     # Read the file and remove lines containing 'Couldn't read result file.'
-    lines <- readLines("./Output/hlahd/sample1_final_mhc.result.txt")
+    lines <- readLines("./Output/hlahd/sample_final_mhc.result.txt")
     
     # Filter out lines containing 'Couldn't read result file.'
     valid_lines <- lines[!grepl("Couldn't read result file.", lines)]
     
     # Write the filtered content to a new temporary file
-    temp_file <- "./Output/hlahd/sample1_final_mhc_clean.result.txt"
+    temp_file <- "./Output/hlahd/sample_final_mhc_clean.result.txt"
     writeLines(valid_lines, temp_file)
     
     # Read the cleaned file
@@ -905,7 +905,7 @@ observeEvent(input$hla_typing_button,{
       unlink("./Output/spechla", recursive = TRUE)
     }
     dir.create("./Output/spechla", showWarnings = FALSE)
-    system(paste("/SpecHLA/spechla.sh ", input$imgthla, " -u 1 -j ", num_cores, " -n sample1 -1 ./Input/sample1_1.fastq.gz -2 ./Input/sample1_2.fastq.gz -o ./Output/spechla",sep = ""))
+    system(paste("/SpecHLA/spechla.sh ", input$imgthla, " -u 1 -j ", num_cores, " -n sample -1 ./Input/sample_1.fastq.gz -2 ./Input/sample_2.fastq.gz -o ./Output/spechla",sep = ""))
     #----------------------------------------------------------
     if (dir.exists("./IGV/spechla")) {
       unlink("./IGV/spechla", recursive = TRUE)
@@ -936,8 +936,8 @@ observeEvent(input$hla_typing_button,{
     # Insert into the alignment results
     
     # Move the BAM file if it exists
-    source_bam <- "/sample1.merge.bam"
-    dest_bam   <- file.path(tmp_dir, "IGV", "spechla", "sample1.merge.bam")
+    source_bam <- "/sample.merge.bam"
+    dest_bam   <- file.path(tmp_dir, "IGV", "spechla", "sample.merge.bam")
     if (file.exists(source_bam)) {
       mv_cmd <- paste("mv", source_bam, dest_bam)
       system(mv_cmd)
@@ -946,7 +946,7 @@ observeEvent(input$hla_typing_button,{
     }
     
     # Read the result file if it exists
-    result_file <- "./Output/spechla/sample1/hla.result.txt"
+    result_file <- "./Output/spechla/sample/hla.result.txt"
     if (file.exists(result_file)) {
       spechla <- read.table(result_file)
     } else {
