@@ -18,20 +18,23 @@ It provides:
 
 ## Requirements
 ShinyHLA uses the following software and reference: 
-### 1. HLA typing tools
+### 1. Demo
+- Due to GitHub upload size limitations, the WES BAM file used in the demo is not included. Please refer to [Welcome to ShinyHLA’s documentation](https://unknown.com) section 1.2 for download instructions.
+
+### 2. HLA typing tools
 - [OptiType v1.3.5](https://github.com/FRED-2/OptiType)
 - [arcasHLA v0.6.0](https://github.com/RabadanLab/arcasHLA)
 - [HLA-HD v1.7.0](https://w3.genome.med.kyoto-u.ac.jp/HLA-HD/)
 - [SpecHLA v1.0.7](https://github.com/deepomicslab/SpecHLA)
 
-### 2. R packages
+### 3. R packages
 - Please refer to [Welcome to ShinyHLA’s documentation](https://unknown.com), section 1.7.
 
-### 3. Sequence Processing Tools
+### 4. Sequence Processing Tools
 - [seqtk v1.3-r106](https://github.com/lh3/seqtk)
 - [Pandepth v2.25](https://github.com/HuiyangYu/PanDepth)
 
-### 4. Human genome reference
+### 5. Human genome reference
 - [Gencode](https://www.gencodegenes.org/human/release_38.html): gencode.v38.annotation.gff3
 
 ## Installation via Docker 
