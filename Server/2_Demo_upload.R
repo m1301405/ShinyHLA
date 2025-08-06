@@ -48,8 +48,8 @@ observeEvent(input$demo_upload_button, {
     # Create Input directory and overwrite old files
     dir.create("./Input", showWarnings = FALSE)
     # Copy Fastq files
-    file.copy("/root/shiny/Demo/rna-seq/HG00096_1_fastq.gz", "./Input/sample_1.fastq.gz", overwrite = TRUE)
-    file.copy("/root/shiny/Demo/rna-seq/HG00096_2_fastq.gz", "./Input/sample_2.fastq.gz", overwrite = TRUE)
+    file.copy("/root/shiny/Demo/rna-seq/HG00096_1.fastq.gz", "./Input/sample_1.fastq.gz", overwrite = TRUE)
+    file.copy("/root/shiny/Demo/rna-seq/HG00096_2.fastq.gz", "./Input/sample_2.fastq.gz", overwrite = TRUE)
     
     # Alert
     shinyalert("Success", paste("RNA-seq Demo File Upload Successful."), type = "success")

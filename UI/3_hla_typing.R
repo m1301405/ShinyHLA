@@ -326,7 +326,7 @@ tabItem(tabName = "hla",
                         )
                       ),
                       conditionalPanel(
-                        condition = "input.package_value_ui == 'HLA-HD'",
+                        condition = "input.package_value_ui == 'HLA-HD' || input.package_value_ui == 'T1K'",
                         tags$br(),
                         fluidRow(
                           column(

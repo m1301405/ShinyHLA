@@ -54,7 +54,7 @@ observeEvent(input$mhci_pivottable_button,{
   }
   
   # Get all file names in the directory
-  file_list <- list.files(path = "./Output", pattern = "*0.txt", full.names = TRUE)
+  file_list <- list.files(path = "./Output", pattern = "\\.txt$", full.names = TRUE)
   output_directory <- "./Pivotable"
   
   # Iterate through all files and read their contents
@@ -85,7 +85,7 @@ observeEvent(input$mhci_pivottable_button,{
       grepl("optitype", file) ~ "OptiType",
       grepl("arcashla", file) ~ "arcasHLA",
       grepl("hlahd", file) ~ "HLA-HD",
-      TRUE ~ "SpecHLA"
+      TRUE ~ "T1K"
     )
     merged_output <- cbind(result,df)
     # export
@@ -280,7 +280,7 @@ observeEvent(input$mhcii_pivottable_button,{
       grepl("optitype", file) ~ "OptiType",
       grepl("arcashla", file) ~ "arcasHLA",
       grepl("hlahd", file) ~ "HLA-HD",
-      TRUE ~ "SpecHLA"
+      TRUE ~ "T1K"
     )
     
     merged_output <- cbind(result,df)

@@ -5,14 +5,15 @@ tmp_dir <- tempdir()
 
 directory_o <- file.path(tmp_dir, "IGV", "optitype")
 directory_h <- file.path(tmp_dir, "IGV", "hlahd")
-directory_s <- file.path(tmp_dir, "IGV", "spechla")
+directory_t <- file.path(tmp_dir, "IGV", "t1k")
 #----------------------------------------------------
 # Use reactiveValues to store globally shared variables
 options_values <- reactiveValues(
   optitype_igv_options = NULL,
   hlahd_igv_i_options = NULL,
   hlahd_igv_ii_options = NULL,
-  spechla_igv_options = NULL
+  t1k_igv_i_options = NULL,
+  t1k_igv_ii_options = NULL
 )
 
 #----------------------------------------------------
@@ -156,37 +157,66 @@ observeEvent(input$igv_reference, {
     
     shinyalert("Success", "HLA-HD reference uploaded successfully.", type = "success")
     
-  } else if (package_value() == "SpecHLA") {
-    # SpecHLA
-    fasta_path_s <- file.path(directory_s, "specHLA_hla_reference.fasta")
-    fastaindex_path_s <- file.path(directory_s, "specHLA_hla_reference.fasta.fai")
+  } else if (package_value() == "T1K") {
+    # T1K Class I
+    fasta_path_t_i <- file.path(directory_t, "hla_classI_ABC.fasta")
+    fastaindex_path_t_i <- file.path(directory_t, "hla_classI_ABC.fasta.fai")
     
-    if (!file.exists(fasta_path_s) || !file.exists(fastaindex_path_s)) {
-      shinyalert("Error", "Required FASTA or index file is missing for SpecHLA.", type = "error")
+    if (!file.exists(fasta_path_t_i) || !file.exists(fastaindex_path_t_i)) {
+      shinyalert("Error", "Required FASTA or index file is missing for T1K Class I and II.", type = "error")
       w$hide()
       return()
     }
     
-    options_values$spechla_igv_options <- parseAndValidateGenomeSpec(
-      genomeName = "spechla",
+    options_values$t1k_igv_i_options <- parseAndValidateGenomeSpec(
+      genomeName = "t1k",
       initialLocus = "All",
       stockGenome = FALSE,
       dataMode = "localFiles",
-      fasta = fasta_path_s,
-      fastaIndex = fastaindex_path_s
+      fasta = fasta_path_t_i,
+      fastaIndex = fastaindex_path_t_i
     )
     
-    if (is.null(options_values$spechla_igv_options)) {
-      shinyalert("Error", "Failed to parse and validate genome specification for SpecHLA.", type = "error")
+    if (is.null(options_values$t1k_igv_i_options)) {
+      shinyalert("Error", "Failed to parse and validate genome specification for T1K Class I.", type = "error")
       w$hide()
       return()
     }
     
     output$alignment_igv <- renderIgvShiny({
-      igvShiny(options_values$spechla_igv_options)
+      igvShiny(options_values$t1k_igv_i_options)
     })
     
-    shinyalert("Success", "SpecHLA reference uploaded successfully.", type = "success")
+    # T1K Class II
+    fasta_path_t_ii <- file.path(directory_t, "hla_classII_D.fasta")
+    fastaindex_path_t_ii <- file.path(directory_t, "hla_classII_D.fasta.fai")
+    
+    if (!file.exists(fasta_path_t_ii) || !file.exists(fastaindex_path_t_ii)) {
+      shinyalert("Error", "Required FASTA or index file is missing for T1K Class II.", type = "error")
+      w$hide()
+      return()
+    }
+    
+    options_values$t1k_igv_ii_options <- parseAndValidateGenomeSpec(
+      genomeName = "t1k",
+      initialLocus = "All",
+      stockGenome = FALSE,
+      dataMode = "localFiles",
+      fasta = fasta_path_t_ii,
+      fastaIndex = fastaindex_path_t_ii
+    )
+    
+    if (is.null(options_values$t1k_igv_ii_options)) {
+      shinyalert("Error", "Failed to parse and validate genome specification for T1K Class II.", type = "error")
+      w$hide()
+      return()
+    }
+    
+    output$alignment_ii_igv <- renderIgvShiny({
+      igvShiny(options_values$t1k_igv_ii_options)
+    })
+    
+    shinyalert("Success", "T1K reference uploaded successfully.", type = "success")
   }
   
   w$hide() # Hide the waiter
@@ -238,20 +268,36 @@ load_and_show_region_hlahd_II <- function(igv_id) {
   showGenomicRegion(session, id = igv_id, region = options_values$hlahd_igv_ii_options)
 }
 
-### SpecHLA
-load_and_show_region_spechla <- function(igv_id) {
-  bam_file <- file.path(directory_s, "sample.merge.bam")
-  bam_name <- "SpecHLA Alignment File"
+### T1K Class I
+load_and_show_region_t1k_I <- function(igv_id) {
+  bam_file <- file.path(directory_t, "t1k_mapping.bam")
+  bam_name <- "T1K Class I Alignment File"
   
   if (!file.exists(bam_file)) {
-    shinyalert("Error", paste("BAM File for SpecHLA not found!"), type = "error")
+    shinyalert("Error", "BAM File for T1K Class I not found!", type = "error")
     return()
   }
   
   x <- readGAlignments(bam_file, param = Rsamtools::ScanBamParam(what = "seq"))
   loadBamTrackFromLocalData(session, id = igv_id, trackName = bam_name, data = x)
-  showGenomicRegion(session, id = igv_id, region = options_values$spechla_igv_options)
+  showGenomicRegion(session, id = igv_id, region = options_values$t1k_igv_i_options)
 }
+
+### T1K Class II
+load_and_show_region_t1k_II <- function(igv_id) {
+  bam_file <- file.path(directory_t, "t1k_mapping.bam")
+  bam_name <- "T1K Class II Alignment File"
+  
+  if (!file.exists(bam_file)) {
+    shinyalert("Error", "BAM File for T1K Class II not found!", type = "error")
+    return()
+  }
+  
+  x <- readGAlignments(bam_file, param = Rsamtools::ScanBamParam(what = "seq"))
+  loadBamTrackFromLocalData(session, id = igv_id, trackName = bam_name, data = x)
+  showGenomicRegion(session, id = igv_id, region = options_values$t1k_igv_ii_options)
+}
+
 
 observeEvent(input$igv_bam_button, {
   w <- Waiter$new(
@@ -261,29 +307,39 @@ observeEvent(input$igv_bam_button, {
   w$show()
   
   if (package_value() == "OptiType") {
-    success_optitype <- file.exists(file.path(directory_o, "optitype_merge_filtered.bam"))
-    load_and_show_region_optitype("alignment_igv")
-    
-    if (success_optitype) {
-      shinyalert("Success", paste("BAM File uploaded successfully for OptiType."), type = "success")
+    bam_file <- file.path(directory_o, "optitype_merge_filtered.bam")
+    if (!file.exists(bam_file)) {
+      shinyalert("Error", "BAM file for OptiType not found!", type = "error")
+      w$hide()
+      return()
     }
+    
+    load_and_show_region_optitype("alignment_igv")
+    shinyalert("Success", "BAM File uploaded successfully for OptiType.", type = "success")
+    
   } else if (package_value() == "HLA-HD") {
-    success_hla <- file.exists(file.path(directory_h, "sample.modified.bam"))
-
+    bam_file <- file.path(directory_h, "sample.modified.bam")
+    if (!file.exists(bam_file)) {
+      shinyalert("Error", "BAM file for HLA-HD not found!", type = "error")
+      w$hide()
+      return()
+    }
+    
     load_and_show_region_hlahd_I("alignment_igv")
     load_and_show_region_hlahd_II("alignment_ii_igv")
+    shinyalert("Success", "BAM File uploaded successfully for HLA-HD.", type = "success")
     
-    if (success_hla) {
-      shinyalert("Success", paste("BAM File uploaded successfully for HLA-HD."), type = "success")
+  } else if (package_value() == "T1K") {
+    bam_file <- file.path(directory_t, "t1k_mapping.bam")
+    if (!file.exists(bam_file)) {
+      shinyalert("Error", "BAM file for T1K not found!", type = "error")
+      w$hide()
+      return()
     }
     
-  } else if (package_value() == "SpecHLA") {
-    success_spechla <- file.exists(file.path(directory_s, "sample.merge.bam"))
-    load_and_show_region_spechla("alignment_igv")
-    
-    if (success_spechla) {
-      shinyalert("Success", paste("BAM File uploaded successfully for SpecHLA."), type = "success")
-    }
+    load_and_show_region_t1k_I("alignment_igv")
+    load_and_show_region_t1k_II("alignment_ii_igv")
+    shinyalert("Success", "BAM File uploaded successfully for T1K.", type = "success")
   }
   
   w$hide()
@@ -296,7 +352,7 @@ observeEvent(input$hg38_igv_i_bam_button, {
   )
   w$show()
   
-  bam_file <- file.path(tmp_dir, "BAM", "0.bam")  
+  bam_file <- file.path(tmp_dir, "BAM", "sample.bam")  
   
   if (file.exists(bam_file)) {
     load_and_show_region_hg38_I("hg38_igv_i")
@@ -315,7 +371,7 @@ observeEvent(input$hg38_igv_ii_bam_button, {
   )
   w$show()
   
-  bam_file <- file.path(tmp_dir, "BAM", "0.bam")  
+  bam_file <- file.path(tmp_dir, "BAM", "sample.bam")  
   
   if (file.exists(bam_file)) {
     load_and_show_region_hg38_II("hg38_igv_ii")

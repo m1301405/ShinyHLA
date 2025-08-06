@@ -11,7 +11,19 @@ observeEvent(input$hla_typing_button,{
   ori_dir <- getwd()
   tmp_dir <- tempdir()
   setwd(tmp_dir)
+  #----------------------------------------------------------
+  input_dir <- file.path(tmp_dir, "Input")
+  input_files <- list.files(input_dir, full.names = TRUE)
   
+  if (length(input_files) == 0) {
+    shinyalert(
+      title = "Error",
+      text = "No input files found. Please upload files before submitting.",
+      type = "error"
+    )
+    return()
+  }
+  #----------------------------------------------------------
   start_time <- Sys.time()
   #----------------------------------------------------------
   w <- Waiter$new(
@@ -900,259 +912,240 @@ observeEvent(input$hla_typing_button,{
       )
     }
     #----------------------------------------------------------
-  }else if (input$package == "SpecHLA") {
-    if (dir.exists("./Output/spechla")) {
-      unlink("./Output/spechla", recursive = TRUE)
+  }else if (input$package == "T1K") {
+    convert_fa_to_fq <- function(fa_path, fq_path) {
+      awk_cmd <- sprintf(
+        "awk 'BEGIN{OFS=\"\\n\"} /^>/ {h=$0; next} {qual=\"\"; for(i=1;i<=length($0);i++) qual=qual\"I\"; print h, $0, \"+\", qual}' %s > %s",
+        shQuote(fa_path), shQuote(fq_path)
+      )
+      system(awk_cmd)
     }
-    dir.create("./Output/spechla", showWarnings = FALSE)
-    system(paste("/SpecHLA/spechla.sh ", input$imgthla, " -u 1 -j ", num_cores, " -n sample -1 ./Input/sample_1.fastq.gz -2 ./Input/sample_2.fastq.gz -o ./Output/spechla",sep = ""))
     #----------------------------------------------------------
-    if (dir.exists("./IGV/spechla")) {
-      unlink("./IGV/spechla", recursive = TRUE)
-    }
-    dir.create("./IGV/spechla", showWarnings = FALSE)
+    seq_suffix <- ifelse(input$sequence == "WES", "dna", "rna")
+    imgt_version_number <- gsub("\\.", "", sub("^v", "", input$imgthla))
+    imgt_dir <- file.path("/T1K/IMGTHLA", input$imgthla)
+    origin_fa <- file.path(imgt_dir, paste0("IMGTHLA_", imgt_version_number, "_", seq_suffix, "_seq.fa"))
+    igv_fa <- file.path(imgt_dir, paste0("IMGTHLA_", imgt_version_number, "_", seq_suffix, "_seq_igv.fa"))
+    #----------------------------------------------------------
+    tmp_dir <- tempdir()
+    base_output_dir <- file.path(tmp_dir, "Output", "t1k")
+    igv_out_dir <- file.path(tmp_dir, "IGV", "t1k")
     
-    # Insert into the reference file
-    # Copy the reference FASTA file if it exists
-    source_ref <- "/SpecHLA/SpecHLA57/db/ref/hla.ref.extend.fa"
-    dest_ref   <- file.path(tmp_dir, "IGV", "spechla", "specHLA_hla_reference.fasta")
-    if (file.exists(source_ref)) {
-      cp_cmd <- paste("cp", source_ref, dest_ref)
-      system(cp_cmd)
-    } else {
-      message("[Warning] Source reference file '", source_ref, "' does not exist. Skipping copy.")
-    }
+    if (dir.exists(base_output_dir)) unlink(base_output_dir, recursive = TRUE)
+    dir.create(base_output_dir, recursive = TRUE, showWarnings = FALSE)
     
-    # Copy the reference index (.fai) file if it exists
-    source_fai <- "/SpecHLA/SpecHLA57/db/ref/hla.ref.extend.fa.fai"
-    dest_fai   <- file.path(tmp_dir, "IGV", "spechla", "specHLA_hla_reference.fasta.fai")
-    if (file.exists(source_fai)) {
-      cp_fai_cmd <- paste("cp", source_fai, dest_fai)
-      system(cp_fai_cmd)
-    } else {
-      message("[Warning] Source reference index file '", source_fai, "' does not exist. Skipping copy.")
-    }
+    if (dir.exists(igv_out_dir)) unlink(igv_out_dir, recursive = TRUE)
+    dir.create(igv_out_dir, recursive = TRUE, showWarnings = FALSE)
     
-    # Insert into the alignment results
+    output_dir <- file.path(base_output_dir, "t1k")
+    #----------------------------------------------------------
+    cmd <- paste(
+      "perl /T1K/run-t1k",
+      "-t", num_cores,
+      "--preset hla",
+      "-1 ./Input/sample_1.fastq.gz",
+      "-2 ./Input/sample_2.fastq.gz",
+      "-f", origin_fa,
+      "-o", output_dir
+    )
+    system(cmd)
+    #----------------------------------------------------------
+    fa1 <- file.path(base_output_dir, "t1k_aligned_1.fa")
+    fa2 <- file.path(base_output_dir, "t1k_aligned_2.fa")
+
+    system(paste("/T1K/replace_fasta_colon.sh", origin_fa, igv_fa))
+    system(paste("bwa index", igv_fa))
     
-    # Move the BAM file if it exists
-    source_bam <- "/sample.merge.bam"
-    dest_bam   <- file.path(tmp_dir, "IGV", "spechla", "sample.merge.bam")
-    if (file.exists(source_bam)) {
-      mv_cmd <- paste("mv", source_bam, dest_bam)
-      system(mv_cmd)
-    } else {
-      message("[Warning] Source BAM file '", source_bam, "' does not exist. Skipping move.")
-    }
+    fq1 <- file.path(igv_out_dir, "t1k_aligned_1.fq")
+    fq2 <- file.path(igv_out_dir, "t1k_aligned_2.fq")
+    convert_fa_to_fq(fa1, fq1)
+    convert_fa_to_fq(fa2, fq2)
     
-    # Read the result file if it exists
-    result_file <- "./Output/spechla/sample/hla.result.txt"
-    if (file.exists(result_file)) {
-      spechla <- read.table(result_file)
-    } else {
-      message("[Warning] Result file '", result_file, "' does not exist. Skipping read.")
-    }
+    bam_path <- file.path(igv_out_dir, "t1k_mapping.bam")
+    system(paste(
+      "bwa mem -t", num_cores, igv_fa, fq1, fq2,
+      "| samtools sort -@", num_cores, "-o", bam_path
+    ))
+    system(paste("samtools index", bam_path))
     
-    # whether the dataframe is empty
-    if (nrow(spechla) == 0) {
-      output$hla_typing_table <- renderDataTable({
-        datatable(
-          data.frame(Message = "HLA typing unsuccessful: Insufficient sequencing reads detected."),
-          class = 'nowrap'
-        )
-      })
+    system(paste("/T1K/split_hla_fasta.sh", igv_fa, igv_out_dir))
+    classI_fa <- file.path(igv_out_dir, "hla_classI_ABC.fasta")
+    classII_fa <- file.path(igv_out_dir, "hla_classII_D.fasta")
+    system(paste("samtools faidx", classI_fa))
+    system(paste("samtools faidx", classII_fa))
+    #----------------------------------------------------------
+    unlink(c(fq1, fq2))
+    file.remove(paste0(igv_fa, c("", ".amb", ".ann", ".bwt", ".pac", ".sa")))
+    #----------------------------------------------------------
+    t1k_raw <- read.delim("./Output/t1k/t1k_genotype.tsv", header = FALSE, sep = "\t", stringsAsFactors = FALSE)
+    
+    keep_genes <- c("HLA-A", "HLA-B", "HLA-C", "HLA-DPA1", "HLA-DPB1", "HLA-DQA1", "HLA-DQB1", "HLA-DRB1")
+    
+    extract_alleles <- function(row) {
+      gene <- row[[1]]
+      if (!gene %in% keep_genes) return(NULL)
       
-      # Define file and directory paths
-      output_file = paste("./Output/spechla_",input$sequence,"_",input$imgthla,".txt",sep = "")
-      zip_folder_pathway = paste("./Download/spechla_",input$sequence,"_",input$imgthla,"_zip",sep = "")
-      output_file_zip_pathway <- paste("Download/spechla_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
-      merged_file = paste("./Pivotable/spechla_",input$sequence,"_",input$imgthla,"_merged.csv",sep = "")
-      igv_folder <- "./IGV/spechla"
+      alleles <- c()
+      if (row[[3]] != "." && row[[3]] != "0" && row[[3]] != "-") alleles <- c(alleles, row[[3]])
+      if (row[[6]] != "." && row[[6]] != "0" && row[[6]] != "-") alleles <- c(alleles, row[[6]])
       
-      # Remove the previous successful typing file (output_file) if it exists
-      if (file.exists(output_file)) {
-        file.remove(output_file)
-      }
-      
-      # Remove the previous typing folder (zip_folder_pathway) if it exists
-      if (dir.exists(zip_folder_pathway)) {
-        unlink(zip_folder_pathway, recursive = TRUE)
-      }
-      
-      # Remove the previous zip file (output_file_zip_pathway) if it exists
-      if (file.exists(output_file_zip_pathway)) {
-        file.remove(output_file_zip_pathway)
+      if (length(row) >= 9 && grepl("\\*", row[[9]])) {
+        third <- unlist(strsplit(row[[9]], ";"))
+        if (length(third) >= 1 && third[1] != "." && third[1] != "-") {
+          alleles <- c(alleles, third[1])
+        }
       }
       
-      # Remove the previous successful typing file (merged_file) if it exists
-      if (file.exists(merged_file)) {
-        file.remove(merged_file)
-      }
+      if (length(alleles) == 0) return(NULL)
       
-      # Remove the previous successful typing folder (igv_folder) if it exists
-      if (dir.exists(igv_folder)) {
-        unlink(igv_folder, recursive = TRUE)
-      }
-      
-    } else {
-      spechla_mhc_table <- data.frame(
-        Allele = character(16),
-        nucleotide = character(16),
-        protein = character(16))
-      for (i in 1:16) {
-        spechla_mhc_table[i, 1] <- spechla[2, (i + 1)]
-      }
-      if ("-" %in% spechla_mhc_table$Allele) {
-        spechla_mhc_table <- subset(spechla_mhc_table, Allele != "-")
-      }
-      # sorting
-      spechla_mhc_table <- spechla_mhc_table[order(spechla_mhc_table$Allele), , drop = FALSE]
-      imgthla_version <- input$imgthla
-      for (i in 1:nrow(spechla_mhc_table)) {
-        seq <- spechla_mhc_table[i, 1]
-        # Determine whether it is a type A, B, or C gene
-        if (grepl("^[ABC]\\*", seq)) {
-          allele_type <- substr(seq, 1, 1)
-          allele_number <- sub("^[ABC]\\*([0-9:]+)", "\\1", seq)
-          IMGTHLA_nuc <- switch(allele_type,
-                                "A" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/A_nuc.fasta", sep = ""),
-                                "B" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/B_nuc.fasta", sep = ""),
-                                "C" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/C_nuc.fasta", sep = ""))
-        } else {
-          # Other types of genes
-          allele_type <- substr(seq, 1, 4)
-          allele_number <- sub("^.{4}\\*([0-9:]+)", "\\1", seq)
-          IMGTHLA_nuc <- switch(allele_type,
-                                "DPA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPA1_nuc.fasta", sep = ""),
-                                "DPB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPB1_nuc.fasta", sep = ""),
-                                "DQA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQA1_nuc.fasta", sep = ""),
-                                "DQB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQB1_nuc.fasta", sep = ""),
-                                "DRB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DRB1_nuc.fasta", sep = ""))
-        }
-        #----------------------------------------------------------
-        if (grepl("N", allele_number)) {
-          cmd <- paste("grep", allele_number, IMGTHLA_nuc, "| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq", IMGTHLA_nuc, " - | sed -n '2p' -")
-        } else {
-          cmd <- paste("grep", allele_number, IMGTHLA_nuc, "| grep -v 'N' | sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq", IMGTHLA_nuc, " - | sed -n '2p' -")
-        }
-        #----------------------------------------------------------
-        result <- system(cmd, intern = TRUE)
-        #----------------------------------------------------------
-        if (length(result) == 0) {
-          warning(paste("No result found for allele_number:", allele_number, "in sequence:", seq))
-          spechla_mhc_table[i, 2] <- NA
-        } else {
-          spechla_mhc_table[i, 2] <- result
-        }
-      }
-      #----------------------------------------------------------
-      imgthla_version <- input$imgthla
-      for (i in 1:nrow(spechla_mhc_table)) {
-        seq <- spechla_mhc_table[i, 1]
-        # Determine whether it is a type A, B, or C gene
-        if (grepl("^[ABC]\\*", seq)) {
-          allele_type <- substr(seq, 1, 1)
-          allele_number <- sub("^[ABC]\\*([0-9:]+)", "\\1", seq)
-          IMGTHLA_prot <- switch(allele_type,
-                                 "A" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/A_prot.fasta", sep = ""),
-                                 "B" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/B_prot.fasta", sep = ""),
-                                 "C" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/C_prot.fasta", sep = ""))
-        } else {
-          # Other types of genes
-          allele_type <- substr(seq, 1, 4)
-          allele_number <- sub("^.{4}\\*([0-9:]+)", "\\1", seq)
-          IMGTHLA_prot <- switch(allele_type,
-                                 "DPA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPA1_prot.fasta", sep = ""),
-                                 "DPB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPB1_prot.fasta", sep = ""),
-                                 "DQA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQA1_prot.fasta", sep = ""),
-                                 "DQB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQB1_prot.fasta", sep = ""),
-                                 "DRB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DRB1_prot.fasta", sep = ""))
-        }
-        #----------------------------------------------------------
-        if (grepl("N", allele_number)) {
-          cmd <- paste("grep", allele_number, IMGTHLA_prot, "| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq", IMGTHLA_prot, " - | sed -n '2p' -")
-        } else {
-          cmd <- paste("grep", allele_number, IMGTHLA_prot, "| grep -v 'N' | sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq", IMGTHLA_prot, " - | sed -n '2p' -")
-        }
-        #----------------------------------------------------------
-        result <- system(cmd, intern = TRUE)
-        #----------------------------------------------------------
-        if (length(result) == 0) {
-          warning(paste("No result found for allele_number:", allele_number, "in sequence:", seq))
-          spechla_mhc_table[i, 3] <- NA  # or some other appropriate default value or handling
-        } else {
-          spechla_mhc_table[i, 3] <- result
-        }
-      }
-      #----------------------------------------------------------
-      output$hla_typing_table <- renderDataTable({
-        datatable(spechla_mhc_table,
-                  filter = "top",
-                  rownames = FALSE,
-                  selection = "none",
-                  class = "nowrap",
-                  options = list(
-                    pageLength = 8,
-                    autoWidth = TRUE,
-                    columnDefs = list(list(
-                      targets = "_all",
-                      render = JS(
-                        "function(data, type, row, meta) {",
-                        "return type === 'display' && data != null && data.length > 20 ?",
-                        "'<span title=\"' + data + '\">' + data.substr(0, 20) + '...</span>' : data;",
-                        "}")
-                    )))
-                  )
-      })
-      #----------------------------------------------------------
-      # Assume sequence_file has been defined as an empty dataframe or matrix
-      sequence_file <- NULL
-      for (i in 1:nrow(spechla_mhc_table)) {
-        seq = spechla_mhc_table[i, 1]
-        nucleotide <- paste(">", seq, "_nucleotide", sep = "")
-        protein <- paste(">", seq, "_protein", sep = "")
-        seqs <- rbind(rbind(nucleotide, spechla_mhc_table[i, 2]), rbind(protein, spechla_mhc_table[i, 3]))
-        sequence_file <- rbind(sequence_file, seqs)
-      }
-      #----------------------------------------------------------
-      output_file = paste("./Output/spechla_",input$sequence,"_",input$imgthla,".txt",sep = "")
-      write(sequence_file,file = output_file)
-      #----------------------------------------------------------
-      dir.create(paste("./Download/spechla_",input$sequence,"_",input$imgthla,"_zip",sep = ""), showWarnings = FALSE)
-      zip_folder_pathway = paste("./Download/spechla_",input$sequence,"_",input$imgthla,"_zip",sep = "")
-      #----------------------------------------------------------
-      lines <- readLines(output_file)
-      dna_lines <- c()
-      protein_lines <- c()
-      #----------------------------------------------------------
-      for (i in seq(1, length(lines), by = 2)) {
-        header <- lines[i]
-        sequence <- lines[i + 1]
-        if (grepl("_nucleotide", header)) {
-          dna_lines <- c(dna_lines, header, sequence)
-        } else if (grepl("_protein", header)) {
-          protein_lines <- c(protein_lines, header, sequence)
-        }
-      }
-      #----------------------------------------------------------
-      dna_file <- file.path(zip_folder_pathway, "nucleotide.fasta")
-      protein_file <- file.path(zip_folder_pathway, "protein.fasta")
-      writeLines(dna_lines, dna_file)
-      writeLines(protein_lines, protein_file)
-      #----------------------------------------------------------
-      setwd(zip_folder_pathway)
-      output_file_zip <- zip(file.path(tmp_dir,paste("Download/spechla_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")), files = ".")
-      output_file_zip_pathway <- paste("Download/spechla_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
-      setwd(tmp_dir)
-      #----------------------------------------------------------
-      output$hla_typing_download <- downloadHandler(
-        filename = function() {
-          paste("spechla_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")},
-        content = function(file) {
-          file.copy(file.path(tmp_dir,output_file_zip_pathway), file)
-        }
+      data.frame(
+        Allele = alleles,
+        nucleotide = "",  
+        protein = "",     
+        stringsAsFactors = FALSE
       )
     }
+    #----------------------------------------------------------
+    t1k_mhc_table <- do.call(rbind, lapply(1:nrow(t1k_raw), function(i) extract_alleles(t1k_raw[i, ])))
+    t1k_mhc_table <- subset(t1k_mhc_table, !(Allele %in% c("-", ".", "0")))
+    t1k_mhc_table <- t1k_mhc_table[order(t1k_mhc_table$Allele), , drop = FALSE]
+    #----------------------------------------------------------
+    #---------------nucleotide
+    imgthla_version <- input$imgthla
+    for (i in 1:nrow(t1k_mhc_table)) {
+      seq <- t1k_mhc_table[i, 1]
+      
+      gene_name <- sub("^HLA-([A-Z0-9]+)\\*.*", "\\1", seq)
+      allele_number <- sub("^HLA-[A-Z0-9]+\\*([0-9:]+)", "\\1", seq)
+      
+      fasta_path <- file.path("/root/shiny/IMGTHLA", imgthla_version, "fasta", paste0(gene_name, "_nuc.fasta"))
+      
+      if (grepl("N", allele_number)) {
+        cmd <- paste("grep", allele_number, fasta_path,
+                     "| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",
+                     fasta_path, "-", "| sed -n '2p'")
+      } else {
+        cmd <- paste("grep", allele_number, fasta_path,
+                     "| grep -v 'N' | sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",
+                     fasta_path, "-", "| sed -n '2p'")
+      }
+      
+      result <- system(cmd, intern = TRUE)
+      
+      if (length(result) == 0) {
+        warning(paste("No nucleotide found for:", seq))
+        t1k_mhc_table[i, 2] <- NA
+      } else {
+        t1k_mhc_table[i, 2] <- result
+      }
+    }
+    #---------------protein
+    for (i in 1:nrow(t1k_mhc_table)) {
+      seq <- t1k_mhc_table[i, 1]
+      
+      gene_name <- sub("^HLA-([A-Z0-9]+)\\*.*", "\\1", seq)
+      allele_number <- sub("^HLA-[A-Z0-9]+\\*([0-9:]+)", "\\1", seq)
+      
+      fasta_path <- file.path("/root/shiny/IMGTHLA", imgthla_version, "fasta", paste0(gene_name, "_prot.fasta"))
+      
+      if (grepl("N", allele_number)) {
+        cmd <- paste("grep", allele_number, fasta_path,
+                     "| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",
+                     fasta_path, "-", "| sed -n '2p'")
+      } else {
+        cmd <- paste("grep", allele_number, fasta_path,
+                     "| grep -v 'N' | sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",
+                     fasta_path, "-", "| sed -n '2p'")
+      }
+      
+      result <- system(cmd, intern = TRUE)
+      
+      if (length(result) == 0) {
+        warning(paste("No protein found for:", seq))
+        t1k_mhc_table[i, 3] <- NA
+      } else {
+        t1k_mhc_table[i, 3] <- result
+      }
+    }
+    #----------------------------------------------------------
+    output$hla_typing_table <- renderDataTable({
+      datatable(t1k_mhc_table,
+                filter = "top",
+                rownames = FALSE,
+                selection = "none",
+                class = "nowrap",
+                options = list(
+                  pageLength = 8,
+                  autoWidth = TRUE,
+                  columnDefs = list(list(
+                    targets = "_all",
+                    render = JS(
+                      "function(data, type, row, meta) {",
+                      "return type === 'display' && data != null && data.length > 20 ?",
+                      "'<span title=\"' + data + '\">' + data.substr(0, 20) + '...</span>' : data;",
+                      "}")
+                  )))
+      )
+    })
+    #----------------------------------------------------------
+    sequence_file <- NULL
+    
+    for (i in 1:nrow(t1k_mhc_table)) {
+      seq <- t1k_mhc_table[i, "Allele"]
+      nuc <- t1k_mhc_table[i, "nucleotide"]
+      prot <- t1k_mhc_table[i, "protein"]
+      
+      short_seq <- sub("^HLA-", "", seq)
+      
+      nucleotide_header <- paste0(">", short_seq, "_nucleotide")
+      protein_header <- paste0(">", short_seq, "_protein")
+      
+      seqs <- rbind(c(nucleotide_header), c(nuc), c(protein_header), c(prot))
+      sequence_file <- rbind(sequence_file, seqs)
+    }
+    
+    output_file <- file.path(base_output_dir, paste0("t1k_", input$sequence, "_", input$imgthla, ".txt"))
+    write(sequence_file, file = output_file)
+    #----------------------------------------------------------
+    zip_folder_pathway <- file.path(tmp_dir, paste0("Download/t1k_", input$sequence, "_", input$imgthla, "_zip"))
+    dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
+    
+    output_file <- file.path(tmp_dir, paste0("Output/t1k_", input$sequence, "_", input$imgthla, ".txt"))
+    lines <- readLines(output_file)
+    
+    dna_lines <- c()
+    protein_lines <- c()
+    
+    for (i in seq(1, length(lines), by = 2)) {
+      header <- lines[i]
+      sequence <- lines[i + 1]
+      
+      if (grepl("_nucleotide", header)) {
+        dna_lines <- c(dna_lines, header, sequence)
+      } else if (grepl("_protein", header)) {
+        protein_lines <- c(protein_lines, header, sequence)
+      }
+    }
+    
+    dna_file <- file.path(zip_folder_pathway, "nucleotide.fasta")
+    protein_file <- file.path(zip_folder_pathway, "protein.fasta")
+    writeLines(dna_lines, dna_file)
+    writeLines(protein_lines, protein_file)
+    #----------------------------------------------------------
+    setwd(zip_folder_pathway)
+    output_file_zip_pathway <- file.path(tmp_dir, paste0("Download/t1k_", input$sequence, "_", input$imgthla, "_output.zip"))
+    zip(zipfile = output_file_zip_pathway, files = list.files(".", full.names = FALSE))
+    setwd(tmp_dir)
+    
+    output$hla_typing_download <- downloadHandler(
+      filename = function() {
+        paste0("t1k_", input$sequence, "_", input$imgthla, "_output.zip")
+      },
+      content = function(file) {
+        file.copy(output_file_zip_pathway, file)
+      }
+    )
+    #----------------------------------------------------------
   }
   w$hide()
   #----------------------------------------------------------

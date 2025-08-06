@@ -28,7 +28,19 @@ coverage_to_pie <- function(value) {
 observeEvent(input$coverage_button, {
   tmp_dir <- tempdir()
   qc_dir <- file.path(tmp_dir, "QC")
+  #====================================
+  bam_dir <- file.path(tmp_dir, "BAM")
+  bam_file <- list.files(bam_dir, full.names = TRUE)
   
+  if (length(bam_file) == 0) {
+    shinyalert(
+      title = "Error",
+      text = "No input files found. Please upload file before QC",
+      type = "error"
+    )
+    return()
+  }
+  #====================================
   # Create waiting animation
   w <- Waiter$new(
     html = spin_loader(),

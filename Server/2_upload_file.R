@@ -21,7 +21,7 @@ observeEvent(input$fastq_upload_button, {
   num_files <- nrow(input$fastq_gz_upload)
   
   if (num_files != required_files) {
-    shinyalert("Error", paste("Please select exactly", required_files, "files. You selected", num_files, "."), type = "error")  } else {
+    shinyalert("Error", paste("Please select exactly", required_files, "files. You selected", num_files, "."), type = "error")
   } else {
     if (dir.exists(bam_dir)) {
       unlink(bam_dir, recursive = TRUE)
