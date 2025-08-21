@@ -253,7 +253,7 @@ tabItem(tabName = "hla",
                   tabsetPanel(
                     id = "igv_tabsetPanel",
                     tabPanel(
-                      title = "GRCh38-I",
+                      title = "Reference: Class I",
                       fluidRow(
                         column(
                           width = 12,
@@ -284,7 +284,7 @@ tabItem(tabName = "hla",
                       )
                     ),
                     tabPanel(
-                      title = "GRCh38-II",
+                      title = "Reference: Class II",
                       fluidRow(
                         column(
                           width = 12,
@@ -315,7 +315,7 @@ tabItem(tabName = "hla",
                       )
                     ),
                     tabPanel(
-                      title = "Package",
+                      title = "Typing Package Results",
                       conditionalPanel(
                         condition = "input.igv_reference >= 1",
                         fluidRow(

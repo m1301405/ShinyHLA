@@ -1104,7 +1104,7 @@ observeEvent(input$hla_typing_button,{
       sequence_file <- rbind(sequence_file, seqs)
     }
     
-    output_file <- file.path(base_output_dir, paste0("t1k_", input$sequence, "_", input$imgthla, ".txt"))
+    output_file <- file.path(tmp_dir, "Output", paste0("t1k_", input$sequence, "_", input$imgthla, ".txt"))
     write(sequence_file, file = output_file)
     #----------------------------------------------------------
     zip_folder_pathway <- file.path(tmp_dir, paste0("Download/t1k_", input$sequence, "_", input$imgthla, "_zip"))

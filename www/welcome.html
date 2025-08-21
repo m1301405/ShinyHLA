@@ -27,17 +27,6 @@ body {
 	white-space: pre-wrap;
 }
 
-body {
-  line-height: 1.5;
-  white-space: pre-wrap;
-  background-color: white; /* 設置背景顏色為白色 */
-}
-
-img {
-  pointer-events: none;
-}
-
-
 a,
 a.visited {
 	color: inherit;
@@ -295,7 +284,7 @@ ol > li {
 }
 
 .page-description {
-    margin-bottom: 2em;
+	margin-bottom: 2em;
 }
 
 .simple-table {
@@ -520,11 +509,11 @@ blockquote {
 .pdf:lang(zh-TW) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
 .pdf:lang(ko-KR) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
 .highlight-default {
-	color: rgba(55, 53, 47, 1);
+	color: rgba(50, 48, 44, 1);
 }
 .highlight-gray {
-	color: rgba(120, 119, 116, 1);
-	fill: rgba(120, 119, 116, 1);
+	color: rgba(115, 114, 110, 1);
+	fill: rgba(115, 114, 110, 1);
 }
 .highlight-brown {
 	color: rgba(159, 107, 83, 1);
@@ -555,14 +544,14 @@ blockquote {
 	fill: rgba(193, 76, 138, 1);
 }
 .highlight-red {
-	color: rgba(212, 76, 71, 1);
-	fill: rgba(212, 76, 71, 1);
+	color: rgba(205, 60, 58, 1);
+	fill: rgba(205, 60, 58, 1);
 }
 .highlight-default_background {
-	color: rgba(55, 53, 47, 1);
+	color: rgba(50, 48, 44, 1);
 }
 .highlight-gray_background {
-	background: rgba(241, 241, 239, 1);
+	background: rgba(248, 248, 247, 1);
 }
 .highlight-brown_background {
 	background: rgba(244, 238, 238, 1);
@@ -580,10 +569,10 @@ blockquote {
 	background: rgba(231, 243, 248, 1);
 }
 .highlight-purple_background {
-	background: rgba(244, 240, 247, 0.8);
+	background: rgba(248, 243, 252, 1);
 }
 .highlight-pink_background {
-	background: rgba(249, 238, 243, 0.8);
+	background: rgba(252, 241, 246, 1);
 }
 .highlight-red_background {
 	background: rgba(253, 235, 236, 1);
@@ -593,8 +582,8 @@ blockquote {
 	fill: inherit;
 }
 .block-color-gray {
-	color: rgba(120, 119, 116, 1);
-	fill: rgba(120, 119, 116, 1);
+	color: rgba(115, 114, 110, 1);
+	fill: rgba(115, 114, 110, 1);
 }
 .block-color-brown {
 	color: rgba(159, 107, 83, 1);
@@ -625,15 +614,15 @@ blockquote {
 	fill: rgba(193, 76, 138, 1);
 }
 .block-color-red {
-	color: rgba(212, 76, 71, 1);
-	fill: rgba(212, 76, 71, 1);
+	color: rgba(205, 60, 58, 1);
+	fill: rgba(205, 60, 58, 1);
 }
 .block-color-default_background {
 	color: inherit;
 	fill: inherit;
 }
 .block-color-gray_background {
-	background: rgba(241, 241, 239, 1);
+	background: rgba(248, 248, 247, 1);
 }
 .block-color-brown_background {
 	background: rgba(244, 238, 238, 1);
@@ -651,28 +640,24 @@ blockquote {
 	background: rgba(231, 243, 248, 1);
 }
 .block-color-purple_background {
-	background: rgba(244, 240, 247, 0.8);
+	background: rgba(248, 243, 252, 1);
 }
 .block-color-pink_background {
-	background: rgba(249, 238, 243, 0.8);
+	background: rgba(252, 241, 246, 1);
 }
 .block-color-red_background {
 	background: rgba(253, 235, 236, 1);
 }
-.select-value-color-uiBlue { background-color: rgba(35, 131, 226, .07); }
-.select-value-color-pink { background-color: rgba(245, 224, 233, 1); }
-.select-value-color-purple { background-color: rgba(232, 222, 238, 1); }
-.select-value-color-green { background-color: rgba(219, 237, 219, 1); }
-.select-value-color-gray { background-color: rgba(227, 226, 224, 1); }
-.select-value-color-transparentGray { background-color: rgba(227, 226, 224, 0); }
-.select-value-color-translucentGray { background-color: rgba(0, 0, 0, 0.06); }
-.select-value-color-orange { background-color: rgba(250, 222, 201, 1); }
-.select-value-color-brown { background-color: rgba(238, 224, 218, 1); }
-.select-value-color-red { background-color: rgba(255, 226, 221, 1); }
-.select-value-color-yellow { background-color: rgba(253, 236, 200, 1); }
-.select-value-color-blue { background-color: rgba(211, 229, 239, 1); }
-.select-value-color-pageGlass { background-color: undefined; }
-.select-value-color-washGlass { background-color: undefined; }
+.select-value-color-default { background-color: rgba(84, 72, 49, 0.08); }
+.select-value-color-gray { background-color: rgba(84, 72, 49, 0.15); }
+.select-value-color-brown { background-color: rgba(210, 162, 141, 0.35); }
+.select-value-color-orange { background-color: rgba(224, 124, 57, 0.27); }
+.select-value-color-yellow { background-color: rgba(236, 191, 66, 0.39); }
+.select-value-color-green { background-color: rgba(123, 183, 129, 0.27); }
+.select-value-color-blue { background-color: rgba(93, 165, 206, 0.27); }
+.select-value-color-purple { background-color: rgba(168, 129, 197, 0.27); }
+.select-value-color-pink { background-color: rgba(225, 136, 179, 0.27); }
+.select-value-color-red { background-color: rgba(244, 171, 159, 0.4); }
 
 .checkbox {
 	display: inline-flex;
@@ -692,4 +677,4 @@ blockquote {
 	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20x%3D%220.75%22%20y%3D%220.75%22%20width%3D%2214.5%22%20height%3D%2214.5%22%20fill%3D%22white%22%20stroke%3D%22%2336352F%22%20stroke-width%3D%221.5%22%2F%3E%0A%3C%2Fsvg%3E");
 }
 	
-</style></head><body><article id="58543c44-47ec-4427-bbbb-29f35339f8ef" class="page serif"><header><h1 class="page-title">Welcome to ShinyHLA</h1><p class="page-description"></p></header><div class="page-body"><hr id="8cfdd9fc-18ec-4a11-8e90-0e61e7f119b6"/><p id="2dd8ba09-63e9-4e7b-92c1-968b2a77d3ea" class=""><em><strong>Applied Bioinformatics Laboratory@CGBS</strong></em></p><h1 id="26909bbd-6c16-47c9-bf19-7840821ed093" class="block-color-blue_background">Background</h1><p id="f123be82-986f-4e95-a05c-04d5de255a77" class="">Human leukocyte antigens (HLA), encoded by the major histocompatibility complex (MHC) genes on chromosome 6p21.3, are critical for the immune response, including recognition of foreign pathogens and mediation of transplant rejection. The advent of next-generation sequencing (NGS) has transformed HLA typing, providing high-resolution, accurate and cost-effective results across multiple loci, surpassing traditional PCR-based methods. However, implementation of HLA typing tools remains challenging due to the <code>complexity of installing numerous dependencies</code> for HLA typing tools that can be cumbersome, making it difficult for users to find the most appropriate application for clinical or research purposes.</p><h1 id="0a4c8562-a682-4baa-ad21-9f58c315d2da" class="block-color-teal_background">What we have done?</h1><figure class="block-color-default callout" style="white-space:pre-wrap;display:flex" id="addb033d-12e3-4ff5-b198-c17b92126d6d"><div style="font-size:1.5em"><span class="icon">💡</span></div><div style="width:100%">To address these barriers, we have developed ShinyHLA, an R/Shiny-based application that integrates four leading HLA typing packages, including <code>OptiType</code>, <code>arcasHLA</code>, <code>HLA-HD</code>, and <code>SpecHLA</code>. Furthermore, it is accessible to users without  programming experience. The ShinyHLA application features an easy-to-use GUI, supports <code>the latest IPD-IMGT/HLA database</code>, and facilitates HLA typing on both <code>whole exome sequencing</code> and <code>RNA sequencing data</code>. </div></figure><figure class="block-color-default callout" style="white-space:pre-wrap;display:flex" id="f0981714-e8c8-447d-b0b3-365ef205e524"><div style="font-size:1.5em"><span class="icon">💡</span></div><div style="width:100%">ShinyHLA deploys R Shiny, a toolkit for building interactive data visualization applications, along with the shiny dashboard and Docker Desktop, to develop a <code>convenient</code>, <code>secure</code> web application.</div></figure><figure class="block-color-default callout" style="white-space:pre-wrap;display:flex" id="0820cb3f-4002-4729-b641-6edf38dc9e25"><div style="font-size:1.5em"><span class="icon">💡</span></div><div style="width:100%">ShinyHLA offers a comprehensive and robust range of functions. A pivot table has been incorporated into the software, enabling users to efficiently <code>summarize the results of HLA typing</code> from a variety of tools and database versions. Furthermore, the Integrative Genomics Viewer (IGV) has been integrated as a visual analytics module, allowing users to <code>examine supplementary reads in specific regions</code>, <code>verify results</code>, and <code>resolve any inconsistencies</code> in HLA typing outcomes provided by different tools. To the best of our knowledge, ShinyHLA is the first web application of its kind to offer a one-stop solution for HLA typing analysis.</div></figure><h1 id="e695e571-9c64-472f-b5ef-4beae01a5539" class="block-color-red_background">The Framework of ShinyHLA</h1><figure id="1189fb31-93cb-80f5-b8bd-c5f927771984" class="image"><a href="Welcome%20to%20ShinyHLA%2058543c4447ec4427bbbb29f35339f8ef/%25E6%2588%25AA%25E5%259C%2596_2024-09-05_00.12.22.png"><img style="width:1248px" src="Welcome%20to%20ShinyHLA%2058543c4447ec4427bbbb29f35339f8ef/%25E6%2588%25AA%25E5%259C%2596_2024-09-05_00.12.22.png"/></a></figure></div></article><span class="sans" style="font-size:14px;padding-top:2em"></span></body></html>
+</style></head><body><article id="58543c44-47ec-4427-bbbb-29f35339f8ef" class="page serif"><header><h1 class="page-title">Welcome to ShinyHLA</h1><p class="page-description"></p></header><div class="page-body"><hr id="8cfdd9fc-18ec-4a11-8e90-0e61e7f119b6"/><p id="2dd8ba09-63e9-4e7b-92c1-968b2a77d3ea" class=""><em><strong>Applied Bioinformatics Laboratory@CGBS</strong></em></p><h1 id="26909bbd-6c16-47c9-bf19-7840821ed093" class="block-color-blue_background">Background</h1><p id="f123be82-986f-4e95-a05c-04d5de255a77" class="">Human leukocyte antigens (HLA), encoded by the major histocompatibility complex (MHC) genes on chromosome 6p21.3, are critical for the immune response, including recognition of foreign pathogens and mediation of transplant rejection. The advent of next-generation sequencing (NGS) has transformed HLA typing, providing high-resolution, accurate and cost-effective results across multiple loci, surpassing traditional PCR-based methods. However, implementation of HLA typing tools remains challenging due to the <code>complexity of installing numerous dependencies</code> for HLA typing tools that can be cumbersome, making it difficult for users to find the most appropriate application for clinical or research purposes.</p><h1 id="0a4c8562-a682-4baa-ad21-9f58c315d2da" class="block-color-teal_background">What we have done?</h1><figure class="block-color-default callout" style="white-space:pre-wrap;display:flex" id="addb033d-12e3-4ff5-b198-c17b92126d6d"><div style="font-size:1.5em"><span class="icon">💡</span></div><div style="width:100%">To address these barriers, we have developed ShinyHLA, an R/Shiny-based application that integrates four leading HLA typing packages, including <code>OptiType</code>, <code>arcasHLA</code>, <code>HLA-HD</code>, and <code>T1K</code>. Furthermore, it is accessible to users without  programming experience. The ShinyHLA application features an easy-to-use GUI, supports <code>the latest IPD-IMGT/HLA database</code>, and facilitates HLA typing on both <code>whole exome sequencing</code> and <code>RNA sequencing data</code>. </div></figure><figure class="block-color-default callout" style="white-space:pre-wrap;display:flex" id="f0981714-e8c8-447d-b0b3-365ef205e524"><div style="font-size:1.5em"><span class="icon">💡</span></div><div style="width:100%">ShinyHLA deploys R Shiny, a toolkit for building interactive data visualization applications, along with the shiny dashboard and Docker Desktop, to develop a <code>convenient</code>, <code>secure</code> web application.</div></figure><figure class="block-color-default callout" style="white-space:pre-wrap;display:flex" id="0820cb3f-4002-4729-b641-6edf38dc9e25"><div style="font-size:1.5em"><span class="icon">💡</span></div><div style="width:100%">ShinyHLA offers a comprehensive and robust range of functions. A pivot table has been incorporated into the software, enabling users to efficiently <code>summarize the results of HLA typing</code> from a variety of tools and database versions. Furthermore, the Integrative Genomics Viewer (IGV) has been integrated as a visual analytics module, allowing users to <code>examine supplementary reads in specific regions</code>, <code>verify results</code>, and <code>resolve any inconsistencies</code> in HLA typing outcomes provided by different tools. To the best of our knowledge, ShinyHLA is the first web application of its kind to offer a one-stop solution for HLA typing analysis.</div></figure><h1 id="e695e571-9c64-472f-b5ef-4beae01a5539" class="block-color-red_background">The Framework of ShinyHLA</h1><figure id="2479fb31-93cb-8080-a5b5-ccfe288051d8" class="image"><a href="welcome_assets/F1.png"><img style="width:4134px" src="welcome_assets/F1.png"/></a></figure></div></article><span class="sans" style="font-size:14px;padding-top:2em"></span></body></html>

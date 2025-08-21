@@ -62,7 +62,7 @@ observeEvent(input$igv_reference, {
   )
   w$show() # Show the waiter
   
-  updateTabsetPanel(session, "igv_tabsetPanel", "Package")
+  updateTabsetPanel(session, "igv_tabsetPanel", "Typing Package Results")
   
   if (package_value() == "OptiType") {
     # OptiType

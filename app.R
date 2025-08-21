@@ -113,10 +113,10 @@ ui <- bs4DashPage(
 ## Server
 server <- function(input, output, session) {
   ## home page
-  source("Server/1_home_html.R",local = TRUE)$vale
+  source("Server/1_home_html.R",local = TRUE)$value
   
   ## Demo upload
-  source("Server/2_Demo_upload.R",local = TRUE)$vale
+  source("Server/2_Demo_upload.R",local = TRUE)$value
   
   ## upload
   source("Server/2_upload_file.R",local = TRUE)$value
