@@ -12,7 +12,7 @@ tabItem(tabName = "upload",
               maximizable = TRUE,
               status = "primary",
               radioButtons("upload_choice", "Choose data format:",
-                           choices = list("FASTQ" = "fastq", "BAM" = "bam","Demo" = "demo"), inline = TRUE),
+                           choices = list("FASTQ" = "fastq", "BAM" = "bam","Demo" = "demo", "JobID" = "jobid"), inline = TRUE),
               conditionalPanel(
                 condition = "input.upload_choice == 'fastq'",
                 fileInput(inputId = "fastq_gz_upload", 
@@ -59,6 +59,29 @@ tabItem(tabName = "upload",
                   label = "Upload",
                   icon = icon("upload")
                 )
+              ),
+              # 2. [新增] JobID Panel
+              conditionalPanel(
+                condition = "input.upload_choice == 'jobid'",
+                div(
+                  style = "display: flex; align-items: center; margin-bottom: 10px;",
+                  div(
+                    style = "flex-grow: 1; margin-right: 10px;",
+                    textInput(
+                      inputId = "jobid_input", 
+                      label = NULL, 
+                      placeholder = "Enter JobID (e.g., 20260105-ABCD)"
+                    )
+                  ),
+                  actionButton(
+                    inputId = "jobid_load_button", 
+                    label = "Load Result",
+                    icon = icon("sync-alt"),
+                    class = "btn-info" # 使用不同顏色區分功能
+                  )
+                ),
+                tags$p("Load previously analyzed results directly without re-running the analysis.", 
+                       style = "font-size: 12px; color: #666;")
               ),
               conditionalPanel(
                 condition = "output.show_qc_button",

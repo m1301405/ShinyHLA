@@ -1,3 +1,6 @@
+# --- [關鍵修正：必須放在最上方] ---
+current_job_id <- reactiveVal("No Job Active")
+package_value <- reactiveVal("")
 #----------------------------------------------------------
 execution_times <- reactiveValues(times = character())
 #----------------------------------------------------------
@@ -11,6 +14,14 @@ observeEvent(input$hla_typing_button,{
   ori_dir <- getwd()
   tmp_dir <- tempdir()
   setwd(tmp_dir)
+  #------------------ [新增] 初始化 JobID 與 歷史目錄 ------------------
+  # 1. 生成唯一 ID 並更新全域變數
+  new_id <- paste0(format(Sys.time(), "%Y%m%d"), "-", sample(1000:9999, 1))
+  current_job_id(new_id) 
+  
+  # 2. 定義並建立持久化存儲目錄
+  history_dir <- file.path("./History", new_id)
+  dir.create(history_dir, recursive = TRUE, showWarnings = FALSE)
   #----------------------------------------------------------
   input_dir <- file.path(tmp_dir, "Input")
   input_files <- list.files(input_dir, full.names = TRUE)
@@ -189,8 +200,6 @@ observeEvent(input$hla_typing_button,{
       if (dir.exists(igv_folder)) {
         unlink(igv_folder, recursive = TRUE)
       }
-      
-      
     } else { 
       optitype_mhc_table <- data.frame(
         Allele = character(6),
@@ -302,6 +311,24 @@ observeEvent(input$hla_typing_button,{
           file.copy(file.path(tmp_dir,output_file_zip_pathway), file)
         }
       )
+      ############################################################
+      # 1. 備份 IGV 檔案
+      backup_igv_files("OptiType", new_id)
+      
+      # 2. 備份 Download Zip 檔
+      history_zip <- file.path(history_dir, basename(output_file_zip_pathway))
+      file.copy(file.path(tmp_dir, output_file_zip_pathway), history_zip)
+      
+      # 3. 儲存 RDS 數據與持久化路徑
+      saveRDS(list(
+        table = optitype_mhc_table,
+        ngs_type = input$sequence,
+        version = input$imgthla,
+        tool = input$package,
+        job_id = new_id,
+        zip_path = history_zip
+      ), file = file.path(history_dir, "result_data.rds"))
+      ############################################################
     }
     #----------------------------------------------------------
   }else if (input$package == "arcasHLA") {
@@ -532,6 +559,20 @@ observeEvent(input$hla_typing_button,{
           file.copy(file.path(tmp_dir,output_file_zip_pathway), file)
         }
       )
+      ############################################################
+      # --- [歸檔點] arcasHLA 結束處 ---
+      history_zip <- file.path(history_dir, basename(output_file_zip_pathway))
+      file.copy(file.path(tmp_dir, output_file_zip_pathway), history_zip)
+      
+      saveRDS(list(
+        table = arcashla_mhc_table,
+        ngs_type = input$sequence,
+        version = input$imgthla,
+        tool = input$package,
+        job_id = new_id,
+        zip_path = history_zip
+      ), file = file.path(history_dir, "result_data.rds"))
+      ############################################################
     }
     #----------------------------------------------------------
   }else if (input$package == "HLA-HD") {
@@ -910,6 +951,25 @@ observeEvent(input$hla_typing_button,{
           file.copy(file.path(tmp_dir,output_file_zip_pathway),file)
         }
       )
+      ############################################################
+      # --- [歸檔點] HLA-HD 結束處 ---
+      # 1. 備份 IGV
+      backup_igv_files("HLA-HD", new_id)
+      
+      # 2. 備份 Zip
+      history_zip <- file.path(history_dir, basename(output_file_zip_pathway))
+      file.copy(file.path(tmp_dir, output_file_zip_pathway), history_zip)
+      
+      saveRDS(list(
+        table = hlahd_mhc_table,
+        ngs_type = input$sequence,
+        version = input$imgthla,
+        tool = input$package,
+        job_id = new_id,
+        zip_path = history_zip
+      ), file = file.path(history_dir, "result_data.rds"))
+      ############################################################
+      
     }
     #----------------------------------------------------------
   }else if (input$package == "T1K") {
@@ -1145,6 +1205,24 @@ observeEvent(input$hla_typing_button,{
         file.copy(output_file_zip_pathway, file)
       }
     )
+    ############################################################
+    # --- [歸檔點] T1K 結束處 ---
+    # 1. 備份 IGV
+    backup_igv_files("T1K", new_id)
+    
+    # 2. 備份 Zip
+    history_zip <- file.path(history_dir, basename(output_file_zip_pathway))
+    file.copy(file.path(tmp_dir, output_file_zip_pathway), history_zip)
+    
+    saveRDS(list(
+      table = t1k_mhc_table,
+      ngs_type = input$sequence,
+      version = input$imgthla,
+      tool = input$package,
+      job_id = new_id,
+      zip_path = history_zip
+    ), file = file.path(history_dir, "result_data.rds"))
+    ############################################################
     #----------------------------------------------------------
   }
   w$hide()

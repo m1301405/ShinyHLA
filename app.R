@@ -53,6 +53,7 @@ ui <- bs4DashPage(
     sidebarMenu(
       id = "my_tabs",
       menuItem("Home", tabName = "home",icon = icon("house")),
+      menuItem("Documentation", tabName = "doc", icon = icon("file-lines")),
       menuItem("Data Upload", tabName = "upload",icon = icon("upload")),
       menuItem("HLA Typing", tabName = "hla",icon = icon("play"))
     )
@@ -104,8 +105,9 @@ ui <- bs4DashPage(
     ),
     tabItems(
       tabItem(tabName = "home",source("UI/1_home.R", local = TRUE)$value),
-      tabItem(tabName = "upload", source("UI/2_upload.R", local = TRUE)$value),
-      tabItem(tabName = "hla", source("UI/3_hla_typing.R", local = TRUE)$value)
+      tabItem(tabName = "doc", source("UI/2_doc.R", local = TRUE)$value),
+      tabItem(tabName = "upload", source("UI/3_upload.R", local = TRUE)$value),
+      tabItem(tabName = "hla", source("UI/4_hla_typing.R", local = TRUE)$value)
     )
   )
 )
@@ -116,28 +118,28 @@ server <- function(input, output, session) {
   source("Server/1_home_html.R",local = TRUE)$value
   
   ## Demo upload
-  source("Server/2_Demo_upload.R",local = TRUE)$value
+  source("Server/3_Demo_upload.R",local = TRUE)$value
   
   ## upload
-  source("Server/2_upload_file.R",local = TRUE)$value
+  source("Server/3_upload_file.R",local = TRUE)$value
   
   ## QC
-  source("Server/2_QC.R",local = TRUE)$vale
+  source("Server/3_QC.R",local = TRUE)$vale
   
   ## cascade
-  source("Server/3_cascade_filter.R",local = TRUE)$value
+  source("Server/4_cascade_filter.R",local = TRUE)$value
   
   ## package
-  source("Server/3_package.R",local = TRUE)$value
+  source("Server/4_package.R",local = TRUE)$value
   
   ##pivottabler
-  source("Server/3_pivottabler.R",local = TRUE)$value
+  source("Server/4_pivottabler.R",local = TRUE)$value
   
   ## BAM & IGV 
-  source("Server/3_igvshiny.R",local = TRUE)$value
+  source("Server/4_igvshiny.R",local = TRUE)$value
 
   ## valuebox
-  source("Server/3_valuebox.R",local = TRUE)$value
+  source("Server/4_valuebox.R",local = TRUE)$value
 }
 
 shinyApp(ui, server)
