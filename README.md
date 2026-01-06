@@ -7,8 +7,7 @@ ShinyHLA is an R/Shiny-based tool for HLA typing, supporting WES and RNA-seq dat
 - *Enhanced data visualization and analysis: Incorporates a pivot table and the Integrative Genomics Viewer (IGV) for efficient result review and comparison.*
 
 ## Website
-The official web edition and documentation for ShinyHLA are available online. 
-- Web edition: [Welcome to ShinyHLA](https://animated-reminder-9ff.notion.site/ebd//58543c4447ec4427bbbb29f35339f8ef)
+The official web documentation for ShinyHLA are available online. 
 - Documentation: [ShinyHLA documentation](https://animated-reminder-9ff.notion.site/ebd//7b6f9fcf9d034442b2b64c89f8662a6c)
 
 It provides:
