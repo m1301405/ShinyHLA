@@ -8,7 +8,7 @@ ShinyHLA is an R/Shiny-based tool for HLA typing, supporting WES and RNA-seq dat
 
 ## Website
 The official web documentation for ShinyHLA are available online. 
-- Documentation: [ShinyHLA documentation](https://animated-reminder-9ff.notion.site/ebd//7b6f9fcf9d034442b2b64c89f8662a6c)
+- Documentation: [ShinyHLA Documentation](https://animated-reminder-9ff.notion.site/ebd//7b6f9fcf9d034442b2b64c89f8662a6c)
 
 It provides:
 1.	Step-by-step guides: Detailed instructions for tasks such as file upload, preprocessing, quality control, and HLA typing.
@@ -24,7 +24,7 @@ ShinyHLA uses the following software and reference:
 - [SpecHLA v1.0.7](https://github.com/deepomicslab/SpecHLA)
 
 ### 2. R packages
-- Please refer to [ShinyHLA documentation](https://animated-reminder-9ff.notion.site/ebd//7b6f9fcf9d034442b2b64c89f8662a6c), section 1.7.
+- Please refer to [ShinyHLA Documentation](https://animated-reminder-9ff.notion.site/ebd//7b6f9fcf9d034442b2b64c89f8662a6c), section 1.7.
 
 ### 3. Sequence Processing Tools
 - [seqtk v1.3-r106](https://github.com/lh3/seqtk)
@@ -40,7 +40,7 @@ ShinyHLA uses the following software and reference:
    `docker run -d -p 3838:3838 --name shinyhla shinyhla:latest`
 4. Open your web browser and navigate to `http://localhost:3838`.
 
-For more detailed installation and operation instructions, please refer to [ShinyHLA documentation](https://animated-reminder-9ff.notion.site/ebd//7b6f9fcf9d034442b2b64c89f8662a6c), section 3.
+For more detailed installation and operation instructions, please refer to [ShinyHLA Documentation](https://animated-reminder-9ff.notion.site/ebd//7b6f9fcf9d034442b2b64c89f8662a6c), section 3.
 
 ## Citation
 [Cheng-Chi Yang, xxx, xxx, and xxx. "ShinyHLA: An R/Shiny-Based Web Application for HLA Typing of NGS Data." journal (Date).](https://unknown.com)
