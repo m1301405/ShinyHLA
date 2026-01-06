@@ -60,28 +60,25 @@ tabItem(tabName = "upload",
                   icon = icon("upload")
                 )
               ),
-              # 2. [新增] JobID Panel
               conditionalPanel(
                 condition = "input.upload_choice == 'jobid'",
-                div(
-                  style = "display: flex; align-items: center; margin-bottom: 10px;",
-                  div(
-                    style = "flex-grow: 1; margin-right: 10px;",
-                    textInput(
-                      inputId = "jobid_input", 
-                      label = NULL, 
-                      placeholder = "Enter JobID (e.g., 20260105-ABCD)"
-                    )
+                tags$div(
+                  style = "margin-bottom: 15px; margin-top: 10px;",
+                  textInput(
+                    inputId = "jobid_input", 
+                    label = "Enter JobID to load previous results:", 
+                    width = "400px",
+                    placeholder = "e.g., 20260105-ABCD"
                   ),
                   actionButton(
                     inputId = "jobid_load_button", 
                     label = "Load Result",
                     icon = icon("sync-alt"),
-                    class = "btn-info" # 使用不同顏色區分功能
+                    class = "btn-info"
                   )
                 ),
-                tags$p("Load previously analyzed results directly without re-running the analysis.", 
-                       style = "font-size: 12px; color: #666;")
+                tags$p("Hint: Loading a JobID will retrieve previous analysis tables, FASTA files, and IGV tracks.", 
+                       style = "font-size: 12px; color: #666; font-style: italic;")
               ),
               conditionalPanel(
                 condition = "output.show_qc_button",

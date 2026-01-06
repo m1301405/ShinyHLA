@@ -61,7 +61,6 @@ observeEvent(input$bam_upload_button, {
     shinyalert("Error", "No files selected.", type = "error")
     w$hide()
     return()
-    
   } else {
     if (dir.exists(bam_dir)) {
       unlink(bam_dir, recursive = TRUE)
@@ -90,79 +89,113 @@ observeEvent(input$bam_upload_button, {
 })
 
 #-----------------------------------------------------------------------
-# [新增] JobID 重新載入功能邏輯
-#-----------------------------------------------------------------------
 observeEvent(input$jobid_load_button, {
-  # 1. 檢查輸入
-  if (input$jobid_input == "") {
+  if (is.null(input$jobid_input) || !nzchar(input$jobid_input)) {
     shinyalert("Error", "Please enter a valid JobID.", type = "error")
     return()
   }
   
-  # 2. 定義 RDS 檔案的路徑
-  target_rds <- file.path(tmp_dir, "History", input$jobid_input, "result_data.rds")
+  jid <- input$jobid_input
+  HISTORY_ROOT <- "/root/shiny/History"
   
-  if (file.exists(target_rds)) {
-    w <- Waiter$new(html = spin_loader(), color = transparent(0.8))
-    w$show()
-    
-    # 3. 讀取持久化數據
-    loaded_data <- readRDS(target_rds)
-    
-    # 4. 更新全域變數狀態
-    current_job_id(input$jobid_input) # 設定後 IGV 會自動導向歷史目錄
-    package_value(loaded_data$tool)
-    
-    # 5. 重新渲染 HLA Typing Table (包含序列截斷邏輯)
-    output$hla_typing_table <- renderDataTable({
-      datatable(
-        loaded_data$table,
-        filter = "top",
-        rownames = FALSE,
-        selection = "none",
-        class = "nowrap",
-        options = list(
-          pageLength = 8,
-          autoWidth = TRUE,
-          columnDefs = list(list(
-            targets = "_all",
-            render = JS(
-              "function(data, type, row, meta) {",
-              "return type === 'display' && data != null && data.length > 20 ?",
-              "'<span title=\"' + data + '\">' + data.substr(0, 20) + '...</span>' : data;",
-              "}"
-            )
-          ))
-        )
-      )
-    })
-    
-    # 6. 重新渲染等寬排版的 Summary Boxes (3-3-3-3 佈局)
-    output$summary_boxes <- renderUI({
-      fluidRow(
-        column(width = 3, summaryBox("NGS Type", loaded_data$ngs_type, width = 12, icon = icon("dna"), style = "info")),
-        column(width = 3, summaryBox("IPD-IMGT/HLA Version", loaded_data$version, width = 12, icon = icon("code-branch"), style = "success")),
-        column(width = 3, summaryBox("Typing Tool", loaded_data$tool, width = 12, icon = icon("box"), style = "danger")),
-        column(width = 3, summaryBox("JobID", input$jobid_input, width = 12, icon = icon("fingerprint"), style = "primary"))
-      )
-    })
-    
-    # 7. 恢復下載功能 (從歸檔路徑抓取檔案)
-    output$hla_typing_download <- downloadHandler(
-      filename = function() { basename(loaded_data$zip_path) },
-      content = function(file) { file.copy(loaded_data$zip_path, file) }
-    )
-    
-    # 8. 自動切換到 HLA Typing 頁面 (修正 app.R 中的 my_tabs ID)
-    updateTabItems(session, "my_tabs", "hla") 
-    
-    w$hide()
-    shinyalert("Success", paste("JobID:", input$jobid_input, "loaded successfully."), type = "success")
-    
-  } else {
-    shinyalert("Error", paste("JobID", input$jobid_input, "not found or incomplete."), type = "error")
+  target_dir <- file.path(HISTORY_ROOT, jid)
+  target_rds <- file.path(target_dir, "result_data.rds")
+  
+  if (!file.exists(target_rds)) {
+    shinyalert("Error", paste("JobID", jid, "not found or incomplete."), type = "error")
+    return()
   }
+  
+  w <- Waiter$new(html = spin_loader(), color = transparent(0.8))
+  w$show()
+  
+  loaded_data <- readRDS(target_rds)
+  
+  # ------------------------------------------------------------
+  # Reload ZIP resolution (canonical first)
+  # ------------------------------------------------------------
+  canonical_zip <- file.path(target_dir, "output.zip")
+  
+  fallback_zip <- if (!is.null(loaded_data$zip_path) && nzchar(loaded_data$zip_path)) loaded_data$zip_path else NULL
+  
+  zip_candidates <- list.files(target_dir, pattern = "\\.zip$", full.names = TRUE)
+  first_zip <- if (length(zip_candidates) > 0) zip_candidates[1] else NULL
+  
+  resolved_zip <- NULL
+  if (file.exists(canonical_zip)) {
+    resolved_zip <- canonical_zip
+  } else if (!is.null(fallback_zip) && file.exists(fallback_zip)) {
+    resolved_zip <- fallback_zip
+  } else if (!is.null(first_zip) && file.exists(first_zip)) {
+    resolved_zip <- first_zip
+  }
+  
+  if (is.null(resolved_zip) || !file.exists(resolved_zip)) {
+    w$hide()
+    shinyalert("Error", "This JobID exists but the archived ZIP file is missing.", type = "error")
+    return()
+  }
+  
+  # ------------------------------------------------------------
+  # Update reactive state for Reload mode
+  # ------------------------------------------------------------
+  current_job_id(jid)
+  package_value(loaded_data$tool)
+  
+  current_mode("reload")
+  current_tmp_zip(NULL) # reload 不用 tmp
+  
+  current_history_zip(normalizePath(resolved_zip, winslash = "/", mustWork = FALSE))
+  current_prefix(basename(resolved_zip))
+  
+  # Reset IGV button to force user to click again to load/update IGV
+  shinyjs::reset("igv_reference")
+  
+  # ------------------------------------------------------------
+  # UI: table
+  # ------------------------------------------------------------
+  output$hla_typing_table <- renderDataTable({
+    datatable(
+      loaded_data$table,
+      filter = "top",
+      rownames = FALSE,
+      selection = "none",
+      class = "nowrap",
+      options = list(
+        pageLength = 8,
+        autoWidth = TRUE,
+        scrollX = TRUE,
+        columnDefs = list(list(
+          width = "100px",
+          targets = "_all",
+          render = JS(
+            "function(data, type, row, meta) {",
+            "return type === 'display' && data != null && data.length > 40 ?",
+            "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
+            "}"
+          )
+        ))
+      )
+    )
+  })
+  
+  # UI: summary
+  output$summary_boxes <- renderUI({
+    fluidRow(
+      column(width = 3, summaryBox("NGS Type", loaded_data$ngs_type, width = 12, icon = icon("dna"), style = "info")),
+      column(width = 3, summaryBox("IPD-IMGT/HLA Version", loaded_data$version, width = 12, icon = icon("code-branch"), style = "success")),
+      column(width = 3, summaryBox("Typing Tool", loaded_data$tool, width = 12, icon = icon("box"), style = "danger")),
+      column(width = 3, summaryBox("JobID", jid, width = 12, icon = icon("fingerprint"), style = "primary"))
+    )
+  })
+  
+  updateTabItems(session, "my_tabs", "hla")
+  
+  w$hide()
+  shinyalert("Success", paste("JobID:", jid, "loaded successfully."), type = "success")
 })
+
+
 
 ## Demo QC option
 wes_demo_uploaded_once <- reactiveVal(FALSE)
@@ -174,7 +207,7 @@ is_current_demo_wes <- reactive({
 observeEvent(input$demo_upload_button, {
   if (input$upload_choice == "demo") {
     if (input$demo_choice == "WES") {
-      wes_demo_uploaded_once(TRUE)  
+      wes_demo_uploaded_once(TRUE)
     } else if (input$demo_choice == "RNA-seq") {
       wes_demo_uploaded_once(FALSE)
     }
@@ -186,4 +219,3 @@ output$show_qc_button <- reactive({
     (input$upload_choice == "demo" && is_current_demo_wes() && wes_demo_uploaded_once())
 })
 outputOptions(output, "show_qc_button", suspendWhenHidden = FALSE)
-

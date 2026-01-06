@@ -70,40 +70,43 @@ tabItem(tabName = "hla",
                     tabPanel(
                       title = "Result",
                       tags$br(),
-                      fluidRow(
-                        conditionalPanel(
-                          condition = "input.hla_typing_button >= 1",
-                          uiOutput("summary_boxes"),
-                          DTOutput("hla_typing_table",width = "auto",height = "auto"),
-                          tags$br()
-                        ),
-                        div(
-                          style = "display: flex; justify-content: space-between; align-items: center; width: 100%;",
-                          conditionalPanel(
-                            condition = "input.hla_typing_button >= 1 && input.package_value_ui != 'arcasHLA'",
-                            div(
-                              style = "flex-grow: 1;",
-                              actionButton(
-                                inputId = "igv_reference",
-                                label = "IGV",
-                                icon = icon("dna")
+                      # === NEW: scroll container for entire result area ===
+                      tags$div(
+                        class = "hla-result-scroll",
+                        tags$div(
+                          class = "hla-result-inner",
+                          
+                          fluidRow(
+                            conditionalPanel(
+                              condition = "input.hla_typing_button >= 1 || input.jobid_load_button >= 1",
+                              
+                              uiOutput("summary_boxes"),
+                              tags$hr(style = "margin: 20px 0;"),
+                              
+                              # DT: keep width 100% inside inner container; overflow handled by outer scroll
+                              DTOutput("hla_typing_table", width = "100%"),
+                              
+                              tags$br()
+                            ),
+                            
+                            # Bottom buttons row
+                            tags$div(
+                              style = "display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 10px;",
+                              
+                              conditionalPanel(
+                                condition = "(input.hla_typing_button >= 1 || input.jobid_load_button >= 1) && input.package_value_ui != 'arcasHLA'",
+                                div(
+                                  actionButton(inputId = "igv_reference", label = "IGV", icon = icon("dna"), class = "btn-outline-danger"),
+                                  tooltip(icon("info-circle"), title = "Visualize alignment results.", placement = "right")
+                                )
                               ),
-                              tooltip(
-                                icon("info-circle"),
-                                title = "Use Integrative Genomics Viewer (IGV) to visualize alignment results from the typing process.",
-                                placement = "right"
-                              )
-                            )
-                          ),
-                          conditionalPanel(
-                            condition = "input.hla_typing_button >= 1",
-                            div(
-                              style = "flex-grow: 0;",
-                              downloadButton(outputId = "hla_typing_download", label = "Download"),
-                              tooltip(
-                                icon("info-circle"),
-                                title = "Save HLA allele nucleotide and protein sequences in FASTA format.",
-                                placement = "right"
+                              
+                              conditionalPanel(
+                                condition = "input.hla_typing_button >= 1 || input.jobid_load_button >= 1",
+                                div(
+                                  downloadButton(outputId = "hla_typing_download", label = "Download", class = "btn-outline-success"),
+                                  tooltip(icon("info-circle"), title = "Save sequences in FASTA format.", placement = "right")
+                                )
                               )
                             )
                           )

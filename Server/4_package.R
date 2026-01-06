@@ -1,6 +1,3 @@
-# --- [關鍵修正：必須放在最上方] ---
-current_job_id <- reactiveVal("No Job Active")
-package_value <- reactiveVal("")
 #----------------------------------------------------------
 execution_times <- reactiveValues(times = character())
 #----------------------------------------------------------
@@ -10,20 +7,23 @@ getCurrentTime <- function() {
   return(formatted_time)
 }
 #----------------------------------------------------------
-observeEvent(input$hla_typing_button,{
-  ori_dir <- getwd()
-  tmp_dir <- tempdir()
-  setwd(tmp_dir)
-  #------------------ [新增] 初始化 JobID 與 歷史目錄 ------------------
-  # 1. 生成唯一 ID 並更新全域變數
-  new_id <- paste0(format(Sys.time(), "%Y%m%d"), "-", sample(1000:9999, 1))
-  current_job_id(new_id) 
+observeEvent(input$hla_typing_button, {
+  HISTORY_ROOT <- "/root/shiny/History"
+  dir.create(HISTORY_ROOT, recursive = TRUE, showWarnings = FALSE)
   
-  # 2. 定義並建立持久化存儲目錄
-  history_dir <- file.path("./History", new_id)
+  ori_dir <- getwd()
+  WORK_ROOT <- tempdir()
+  
+  setwd(WORK_ROOT)
+  
+  new_id <- paste0(format(Sys.time(), "%Y%m%d"), "-", sample(1000:9999, 1))
+  current_job_id(new_id)
+  
+  history_dir <- file.path(HISTORY_ROOT, new_id)
   dir.create(history_dir, recursive = TRUE, showWarnings = FALSE)
+  
   #----------------------------------------------------------
-  input_dir <- file.path(tmp_dir, "Input")
+  input_dir <- file.path(WORK_ROOT, "Input")
   input_files <- list.files(input_dir, full.names = TRUE)
   
   if (length(input_files) == 0) {
@@ -32,6 +32,7 @@ observeEvent(input$hla_typing_button,{
       text = "No input files found. Please upload files before submitting.",
       type = "error"
     )
+    setwd(ori_dir)
     return()
   }
   #----------------------------------------------------------
@@ -55,7 +56,7 @@ observeEvent(input$hla_typing_button,{
     #----------------------------------------------------------
     if (input$sequence == "WES") {
       system("OptiTypePipeline.py -i ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -d -p sample -o ./Output/optitype")
-    }else if (input$sequence == "RNA-seq") {
+    } else if (input$sequence == "RNA-seq") {
       system("OptiTypePipeline.py -i ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -r -p sample -o ./Output/optitype")
     }
     #----------------------------------------------------------
@@ -144,8 +145,10 @@ observeEvent(input$hla_typing_button,{
     
     # Execute the Python script if the input BAM exists
     if (file.exists(input_bam)) {
-      py_cmd <- paste("python /root/shiny/Server/optitype_igv_genome.py", 
-                      input_bam, reference_fasta, igv_fasta)
+      py_cmd <- paste(
+        "python /root/shiny/Server/optitype_igv_genome.py",
+        input_bam, reference_fasta, igv_fasta
+      )
       system(py_cmd)
     } else {
       message("[Warning] Input BAM file does not exist. Python script not executed.")
@@ -159,21 +162,21 @@ observeEvent(input$hla_typing_button,{
       message("[Warning] IGV FASTA file does not exist. Cannot create index.")
     }
     #----------------------------------------------------------
-    optitype = read.table(file = "./Output/optitype/sample_result.tsv", sep = '\t', header = TRUE)
+    optitype <- read.table(file = "./Output/optitype/sample_result.tsv", sep = "\t", header = TRUE)
     # whether the dataframe is empty
     if (nrow(optitype) == 0) {
       output$hla_typing_table <- renderDataTable({
         datatable(
           data.frame(Message = "HLA typing unsuccessful: Insufficient sequencing reads detected."),
-          class = 'nowrap'
+          class = "nowrap"
         )
       })
       
       # Define file and directory paths
-      output_file = paste("./Output/optitype_",input$sequence,"_",input$imgthla,".txt",sep = "")
-      zip_folder_pathway = paste("./Download/optitype_",input$sequence,"_",input$imgthla,"_zip",sep = "")
-      output_file_zip_pathway <- paste("Download/optitype_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
-      merged_file = paste("./Pivotable/optitype_",input$sequence,"_",input$imgthla,"_merged.csv",sep = "")
+      output_file <- paste("./Output/optitype_", input$sequence, "_", input$imgthla, ".txt", sep = "")
+      zip_folder_pathway <- paste("./Download/optitype_", input$sequence, "_", input$imgthla, "_zip", sep = "")
+      output_file_zip_pathway <- paste("Download/optitype_", input$sequence, "_", input$imgthla, "_output.zip", sep = "")
+      merged_file <- paste("./Pivotable/optitype_", input$sequence, "_", input$imgthla, "_merged.csv", sep = "")
       igv_folder <- "./IGV/optitype"
       
       # Remove the previous successful typing file (output_file) if it exists
@@ -200,7 +203,7 @@ observeEvent(input$hla_typing_button,{
       if (dir.exists(igv_folder)) {
         unlink(igv_folder, recursive = TRUE)
       }
-    } else { 
+    } else {
       optitype_mhc_table <- data.frame(
         Allele = character(6),
         nucleotide = character(6),
@@ -208,42 +211,50 @@ observeEvent(input$hla_typing_button,{
         stringsAsFactors = FALSE
       )
       
-      optitype_mhc_table[1,1] <- if (is.na(optitype[1,2]) || optitype[1,2] == "") "" else optitype[1,2]
-      optitype_mhc_table[2,1] <- if (is.na(optitype[1,3]) || optitype[1,3] == "") "" else optitype[1,3]
-      optitype_mhc_table[3,1] <- if (is.na(optitype[1,4]) || optitype[1,4] == "") "" else optitype[1,4]
-      optitype_mhc_table[4,1] <- if (is.na(optitype[1,5]) || optitype[1,5] == "") "" else optitype[1,5]
-      optitype_mhc_table[5,1] <- if (is.na(optitype[1,6]) || optitype[1,6] == "") "" else optitype[1,6]
-      optitype_mhc_table[6,1] <- if (is.na(optitype[1,7]) || optitype[1,7] == "") "" else optitype[1,7]
+      optitype_mhc_table[1, 1] <- if (is.na(optitype[1, 2]) || optitype[1, 2] == "") "" else optitype[1, 2]
+      optitype_mhc_table[2, 1] <- if (is.na(optitype[1, 3]) || optitype[1, 3] == "") "" else optitype[1, 3]
+      optitype_mhc_table[3, 1] <- if (is.na(optitype[1, 4]) || optitype[1, 4] == "") "" else optitype[1, 4]
+      optitype_mhc_table[4, 1] <- if (is.na(optitype[1, 5]) || optitype[1, 5] == "") "" else optitype[1, 5]
+      optitype_mhc_table[5, 1] <- if (is.na(optitype[1, 6]) || optitype[1, 6] == "") "" else optitype[1, 6]
+      optitype_mhc_table[6, 1] <- if (is.na(optitype[1, 7]) || optitype[1, 7] == "") "" else optitype[1, 7]
       
       optitype_mhc_table <- optitype_mhc_table[order(optitype_mhc_table$Allele), , drop = FALSE]
       optitype_mhc_table <- optitype_mhc_table %>% filter(Allele != "")
       #----------------------------------------------------------
       for (i in 1:nrow(optitype_mhc_table)) {
-        imgthla_version = input$imgthla
-        seq = optitype_mhc_table[i,1]
-        allele_type = substr(seq,1,1)
-        allele_number = substr(seq,3,nchar(seq))
-        IMGTHLA_nuc <- switch(allele_type, "A"=paste("/root/shiny/IMGTHLA/",imgthla_version,"/fasta/A_nuc.fasta",sep = ""), "B"=paste("/root/shiny/IMGTHLA/",imgthla_version,"/fasta/B_nuc.fasta",sep = ""), "C"=paste("/root/shiny/IMGTHLA/",imgthla_version,"/fasta/C_nuc.fasta",sep = ""))
+        imgthla_version <- input$imgthla
+        seq <- optitype_mhc_table[i, 1]
+        allele_type <- substr(seq, 1, 1)
+        allele_number <- substr(seq, 3, nchar(seq))
+        IMGTHLA_nuc <- switch(allele_type,
+                              "A" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/A_nuc.fasta", sep = ""),
+                              "B" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/B_nuc.fasta", sep = ""),
+                              "C" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/C_nuc.fasta", sep = "")
+        )
         if (grepl("N", allele_number)) {
-          cmd <- paste("grep",allele_number,IMGTHLA_nuc,"| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",IMGTHLA_nuc," - | sed -n '2p' -")
+          cmd <- paste("grep", allele_number, IMGTHLA_nuc, "| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq", IMGTHLA_nuc, " - | sed -n '2p' -")
         } else {
-          cmd <- paste("grep",allele_number,IMGTHLA_nuc,"| grep -v 'N' | sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",IMGTHLA_nuc," - | sed -n '2p' -")
+          cmd <- paste("grep", allele_number, IMGTHLA_nuc, "| grep -v 'N' | sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq", IMGTHLA_nuc, " - | sed -n '2p' -")
         }
-        optitype_mhc_table[i,2] <- system(cmd, intern = TRUE)
+        optitype_mhc_table[i, 2] <- system(cmd, intern = TRUE)
       }
       #----------------------------------------------------------
       for (i in 1:nrow(optitype_mhc_table)) {
-        imgthla_version = input$imgthla
-        seq = optitype_mhc_table[i,1]
-        allele_type = substr(seq,1,1)
-        allele_number = substr(seq,3,nchar(seq))
-        IMGTHLA_prot <- switch(allele_type, "A"=paste("/root/shiny/IMGTHLA/",imgthla_version,"/fasta/A_prot.fasta",sep = ""), "B"=paste("/root/shiny/IMGTHLA/",imgthla_version,"/fasta/B_prot.fasta",sep = ""), "C"=paste("/root/shiny/IMGTHLA/",imgthla_version,"/fasta/C_prot.fasta",sep = ""))
+        imgthla_version <- input$imgthla
+        seq <- optitype_mhc_table[i, 1]
+        allele_type <- substr(seq, 1, 1)
+        allele_number <- substr(seq, 3, nchar(seq))
+        IMGTHLA_prot <- switch(allele_type,
+                               "A" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/A_prot.fasta", sep = ""),
+                               "B" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/B_prot.fasta", sep = ""),
+                               "C" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/C_prot.fasta", sep = "")
+        )
         if (grepl("N", allele_number)) {
-          cmd <- paste("grep",allele_number,IMGTHLA_prot,"| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",IMGTHLA_prot," - | sed -n '2p' -")
+          cmd <- paste("grep", allele_number, IMGTHLA_prot, "| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq", IMGTHLA_prot, " - | sed -n '2p' -")
         } else {
-          cmd <- paste("grep",allele_number,IMGTHLA_prot,"| grep -v 'N' | sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",IMGTHLA_prot," - | sed -n '2p' -")
+          cmd <- paste("grep", allele_number, IMGTHLA_prot, "| grep -v 'N' | sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq", IMGTHLA_prot, " - | sed -n '2p' -")
         }
-        optitype_mhc_table[i,3] <- system(cmd, intern = TRUE)
+        optitype_mhc_table[i, 3] <- system(cmd, intern = TRUE)
       }
       #----------------------------------------------------------
       output$hla_typing_table <- renderDataTable({
@@ -255,14 +266,18 @@ observeEvent(input$hla_typing_button,{
                   options = list(
                     pageLength = 8,
                     autoWidth = TRUE,
+                    scrollX = TRUE,
                     columnDefs = list(list(
+                      width = "100px",
                       targets = "_all",
                       render = JS(
                         "function(data, type, row, meta) {",
-                        "return type === 'display' && data != null && data.length > 20 ?",
-                        "'<span title=\"' + data + '\">' + data.substr(0, 20) + '...</span>' : data;",
-                        "}")
-                    )))
+                        "return type === 'display' && data != null && data.length > 40 ?",
+                        "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
+                        "}"
+                      )
+                    ))
+                  )
         )
       })
       #----------------------------------------------------------
@@ -273,16 +288,16 @@ observeEvent(input$hla_typing_button,{
         seqs <- rbind(rbind(nucleotide, optitype_mhc_table[i, 2]), rbind(protein, optitype_mhc_table[i, 3]))
         sequence_file <- rbind(sequence_file, seqs)
       }
-      output_file = paste("./Output/optitype_",input$sequence,"_",input$imgthla,".txt",sep = "")
-      write(sequence_file,file = output_file)
+      output_file <- paste("./Output/optitype_", input$sequence, "_", input$imgthla, ".txt", sep = "")
+      write(sequence_file, file = output_file)
       #----------------------------------------------------------
-      dir.create(paste("./Download/optitype_",input$sequence,"_",input$imgthla,"_zip",sep = ""), showWarnings = FALSE)
-      zip_folder_pathway = paste("./Download/optitype_",input$sequence,"_",input$imgthla,"_zip",sep = "")
-      #---------------------------------------------------------- 
+      zip_folder_pathway <- file.path(WORK_ROOT, "Download", paste0("optitype_", input$sequence, "_", input$imgthla, "_zip"))
+      dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
+      #----------------------------------------------------------
       lines <- readLines(output_file)
       dna_lines <- c()
       protein_lines <- c()
-      #---------------------------------------------------------- 
+      #----------------------------------------------------------
       for (i in seq(1, length(lines), by = 2)) {
         header <- lines[i]
         sequence <- lines[i + 1]
@@ -293,75 +308,86 @@ observeEvent(input$hla_typing_button,{
           protein_lines <- c(protein_lines, header, sequence)
         }
       }
-      #---------------------------------------------------------- 
+      #----------------------------------------------------------
       dna_file <- file.path(zip_folder_pathway, "nucleotide.fasta")
       protein_file <- file.path(zip_folder_pathway, "protein.fasta")
       writeLines(dna_lines, dna_file)
       writeLines(protein_lines, protein_file)
       #----------------------------------------------------------
       setwd(zip_folder_pathway)
-      output_file_zip <- zip(file.path(tmp_dir,paste("Download/optitype_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")), files = ".")
-      output_file_zip_pathway <- paste("Download/optitype_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
-      setwd(tmp_dir)
+      output_file_zip <- zip(file.path(WORK_ROOT, paste("Download/optitype_", input$sequence, "_", input$imgthla, "_output.zip", sep = "")), files = ".")
+      output_file_zip_pathway <- paste("Download/optitype_", input$sequence, "_", input$imgthla, "_output.zip", sep = "")
+      setwd(WORK_ROOT)
       #----------------------------------------------------------
-      output$hla_typing_download <- downloadHandler(
-        filename = function() {
-          paste("optitype_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")},
-        content = function(file) {
-          file.copy(file.path(tmp_dir,output_file_zip_pathway), file)
-        }
-      )
-      ############################################################
-      # 1. 備份 IGV 檔案
       backup_igv_files("OptiType", new_id)
       
-      # 2. 備份 Download Zip 檔
-      history_zip <- file.path(history_dir, basename(output_file_zip_pathway))
-      file.copy(file.path(tmp_dir, output_file_zip_pathway), history_zip)
+      zip_name <- paste0("optitype_", input$sequence, "_", input$imgthla, "_output.zip")
+      zip_src <- file.path(WORK_ROOT, "Download", zip_name)
       
-      # 3. 儲存 RDS 數據與持久化路徑
+      if (!file.exists(zip_src)) {
+        w$hide()
+        shinyalert("Error", paste("ZIP not generated:", zip_src), type = "error")
+        setwd(ori_dir)
+        return()
+      }
+      
+      current_tmp_zip(normalizePath(zip_src, winslash = "/", mustWork = FALSE))
+      current_mode("run")
+      
+      history_zip <- file.path(history_dir, basename(zip_src))
+      ok <- file.copy(zip_src, history_zip, overwrite = TRUE)
+      
+      if (!ok || !file.exists(history_zip)) {
+        w$hide()
+        shinyalert("Error", "Failed to archive ZIP into /root/shiny/History.", type = "error")
+        setwd(ori_dir)
+        return()
+      }
+      
+      current_history_zip(normalizePath(history_zip, winslash = "/", mustWork = FALSE))
+      current_prefix(basename(zip_src))
+      
       saveRDS(list(
         table = optitype_mhc_table,
         ngs_type = input$sequence,
         version = input$imgthla,
         tool = input$package,
         job_id = new_id,
-        zip_path = history_zip
+        zip_path = normalizePath(history_zip, winslash = "/", mustWork = FALSE)
       ), file = file.path(history_dir, "result_data.rds"))
-      ############################################################
     }
     #----------------------------------------------------------
-  }else if (input$package == "arcasHLA") {
+  } else if (input$package == "arcasHLA") {
     if (dir.exists("./Output/arcashla")) {
       unlink("./Output/arcashla", recursive = TRUE)
     }
     dir.create("./Output/arcashla", showWarnings = FALSE)
     #----------------------------------------------------------
     if (input$imgthla == "v3.14.0") {
-      system(paste("/arcasHLA/arcasHLA genotype14 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype14 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     } else if (input$imgthla == "v3.49.0") {
-      system(paste("/arcasHLA/arcasHLA genotype49 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype49 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     } else if (input$imgthla == "v3.50.0") {
-      system(paste("/arcasHLA/arcasHLA genotype50 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype50 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     } else if (input$imgthla == "v3.51.0") {
-      system(paste("/arcasHLA/arcasHLA genotype51 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype51 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     } else if (input$imgthla == "v3.52.0") {
-      system(paste("/arcasHLA/arcasHLA genotype52 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype52 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     } else if (input$imgthla == "v3.53.0") {
-      system(paste("/arcasHLA/arcasHLA genotype53 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype53 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     } else if (input$imgthla == "v3.54.0") {
-      system(paste("/arcasHLA/arcasHLA genotype54 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype54 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     } else if (input$imgthla == "v3.55.0") {
-      system(paste("/arcasHLA/arcasHLA genotype55 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype55 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     } else if (input$imgthla == "v3.56.0") {
-      system(paste("/arcasHLA/arcasHLA genotype56 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype56 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     } else if (input$imgthla == "v3.57.0") {
-      system(paste("/arcasHLA/arcasHLA genotype57 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype57 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     } else if (input$imgthla == "v3.58.0") {
-      system(paste("/arcasHLA/arcasHLA genotype58 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v",sep = ""))
+      system(paste("/arcasHLA/arcasHLA genotype58 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     }
     #----------------------------------------------------------
-    arcashla_genotype_path <- paste("./Output/arcashla/sample_1.genotype.json",sep = "")
+    arcashla_genotype_path <- paste("./Output/arcashla/sample_1.genotype.json", sep = "")
     arcashla_genotype <- fromJSON(file = arcashla_genotype_path)
     #----------------------------------------------------------
     # whether the dataframe is empty
@@ -369,15 +395,15 @@ observeEvent(input$hla_typing_button,{
       output$hla_typing_table <- renderDataTable({
         datatable(
           data.frame(Message = "HLA typing unsuccessful: Insufficient sequencing reads detected."),
-          class = 'nowrap'
+          class = "nowrap"
         )
       })
       
       # Define file and directory paths
-      output_file = paste("./Output/arcashla_",input$sequence,"_",input$imgthla,".txt",sep = "")
-      zip_folder_pathway = paste("./Download/arcashla_",input$sequence,"_",input$imgthla,"_zip",sep = "")
-      output_file_zip_pathway <- paste("Download/arcashla_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
-      merged_file = paste("./Pivotable/arcashla_",input$sequence,"_",input$imgthla,"_merged.csv",sep = "")
+      output_file <- paste("./Output/arcashla_", input$sequence, "_", input$imgthla, ".txt", sep = "")
+      zip_folder_pathway <- paste("./Download/arcashla_", input$sequence, "_", input$imgthla, "_zip", sep = "")
+      output_file_zip_pathway <- paste("Download/arcashla_", input$sequence, "_", input$imgthla, "_output.zip", sep = "")
+      merged_file <- paste("./Pivotable/arcashla_", input$sequence, "_", input$imgthla, "_merged.csv", sep = "")
       
       # Remove the previous successful typing file (output_file) if it exists
       if (file.exists(output_file)) {
@@ -398,8 +424,7 @@ observeEvent(input$hla_typing_button,{
       if (file.exists(merged_file)) {
         file.remove(merged_file)
       }
-      
-    } else { 
+    } else {
       arcashla_mhc_A <- arcashla_genotype[["A"]]
       arcashla_mhc_B <- arcashla_genotype[["B"]]
       arcashla_mhc_C <- arcashla_genotype[["C"]]
@@ -407,7 +432,7 @@ observeEvent(input$hla_typing_button,{
       arcashla_mhc_DQA1 <- arcashla_genotype[["DQA1"]]
       arcashla_mhc_DQB1 <- arcashla_genotype[["DQB1"]]
       arcashla_mhc_DRB1 <- arcashla_genotype[["DRB1"]]
-      arcashla_mhc_all <- rbind(arcashla_mhc_A,arcashla_mhc_B,arcashla_mhc_C,arcashla_mhc_DPB1,arcashla_mhc_DQA1,arcashla_mhc_DQB1,arcashla_mhc_DRB1)
+      arcashla_mhc_all <- rbind(arcashla_mhc_A, arcashla_mhc_B, arcashla_mhc_C, arcashla_mhc_DPB1, arcashla_mhc_DQA1, arcashla_mhc_DQB1, arcashla_mhc_DRB1)
       arcashla_mhc_all <- as.data.frame(arcashla_mhc_all)
       #----------------------------------------------------------
       arcashla_stacked <- stack(arcashla_mhc_all)
@@ -419,9 +444,10 @@ observeEvent(input$hla_typing_button,{
       arcashla_mhc_table <- data.frame(
         Allele = character(nrow(arcashla_stacked)),
         nucleotide = character(nrow(arcashla_stacked)),
-        protein = character(nrow(arcashla_stacked)))
+        protein = character(nrow(arcashla_stacked))
+      )
       for (i in 1:nrow(arcashla_stacked)) {
-        arcashla_mhc_table[i, 1] <- arcashla_stacked[i,]
+        arcashla_mhc_table[i, 1] <- arcashla_stacked[i, ]
       }
       #---------------------------------------------------------- sorting
       arcashla_mhc_table <- arcashla_mhc_table[order(arcashla_mhc_table$Allele), , drop = FALSE]
@@ -433,19 +459,21 @@ observeEvent(input$hla_typing_button,{
         if (grepl("^[ABC]\\*", seq)) {
           allele_type <- substr(seq, 1, 1)
           allele_number <- sub("^[ABC]\\*([0-9:]+)", "\\1", seq)
-          IMGTHLA_nuc <- switch(allele_type, 
-                                "A" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/A_nuc.fasta", sep = ""), 
-                                "B" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/B_nuc.fasta", sep = ""), 
-                                "C" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/C_nuc.fasta", sep = ""))
+          IMGTHLA_nuc <- switch(allele_type,
+                                "A" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/A_nuc.fasta", sep = ""),
+                                "B" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/B_nuc.fasta", sep = ""),
+                                "C" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/C_nuc.fasta", sep = "")
+          )
         } else {
           # Other types of genes
           allele_type <- substr(seq, 1, 4)
           allele_number <- sub("^.{4}\\*([0-9:]+)", "\\1", seq)
-          IMGTHLA_nuc <- switch(allele_type, 
-                                "DPB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPB1_nuc.fasta", sep = ""), 
-                                "DQA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQA1_nuc.fasta", sep = ""), 
-                                "DQB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQB1_nuc.fasta", sep = ""), 
-                                "DRB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DRB1_nuc.fasta", sep = ""))
+          IMGTHLA_nuc <- switch(allele_type,
+                                "DPB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPB1_nuc.fasta", sep = ""),
+                                "DQA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQA1_nuc.fasta", sep = ""),
+                                "DQB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQB1_nuc.fasta", sep = ""),
+                                "DRB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DRB1_nuc.fasta", sep = "")
+          )
         }
         if (grepl("N", allele_number)) {
           cmd <- paste("grep", allele_number, IMGTHLA_nuc, "| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq", IMGTHLA_nuc, " - | sed -n '2p' -")
@@ -455,7 +483,7 @@ observeEvent(input$hla_typing_button,{
         result <- system(cmd, intern = TRUE)
         if (length(result) == 0) {
           warning(paste("No result found for allele_number:", allele_number, "in sequence:", seq))
-          arcashla_mhc_table[i, 2] <- NA  # or some other appropriate default value or handling
+          arcashla_mhc_table[i, 2] <- NA # or some other appropriate default value or handling
         } else {
           arcashla_mhc_table[i, 2] <- result
         }
@@ -468,19 +496,21 @@ observeEvent(input$hla_typing_button,{
         if (grepl("^[ABC]\\*", seq)) {
           allele_type <- substr(seq, 1, 1)
           allele_number <- sub("^[ABC]\\*([0-9:]+)", "\\1", seq)
-          IMGTHLA_prot <- switch(allele_type, 
-                                 "A" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/A_prot.fasta", sep = ""), 
-                                 "B" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/B_prot.fasta", sep = ""), 
-                                 "C" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/C_prot.fasta", sep = ""))
+          IMGTHLA_prot <- switch(allele_type,
+                                 "A" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/A_prot.fasta", sep = ""),
+                                 "B" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/B_prot.fasta", sep = ""),
+                                 "C" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/C_prot.fasta", sep = "")
+          )
         } else {
           # Other types of genes
           allele_type <- substr(seq, 1, 4)
           allele_number <- sub("^.{4}\\*([0-9:]+)", "\\1", seq)
-          IMGTHLA_prot <- switch(allele_type, 
-                                 "DPB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPB1_prot.fasta", sep = ""), 
-                                 "DQA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQA1_prot.fasta", sep = ""), 
-                                 "DQB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQB1_prot.fasta", sep = ""), 
-                                 "DRB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DRB1_prot.fasta", sep = ""))
+          IMGTHLA_prot <- switch(allele_type,
+                                 "DPB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPB1_prot.fasta", sep = ""),
+                                 "DQA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQA1_prot.fasta", sep = ""),
+                                 "DQB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQB1_prot.fasta", sep = ""),
+                                 "DRB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DRB1_prot.fasta", sep = "")
+          )
         }
         if (grepl("N", allele_number)) {
           cmd <- paste("grep", allele_number, IMGTHLA_prot, "| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq", IMGTHLA_prot, " - | sed -n '2p' -")
@@ -505,14 +535,18 @@ observeEvent(input$hla_typing_button,{
                   options = list(
                     pageLength = 8,
                     autoWidth = TRUE,
+                    scrollX = TRUE,
                     columnDefs = list(list(
+                      width = "100px",
                       targets = "_all",
                       render = JS(
                         "function(data, type, row, meta) {",
-                        "return type === 'display' && data != null && data.length > 20 ?",
-                        "'<span title=\"' + data + '\">' + data.substr(0, 20) + '...</span>' : data;",
-                        "}")
-                    )))
+                        "return type === 'display' && data != null && data.length > 40 ?",
+                        "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
+                        "}"
+                      )
+                    ))
+                  )
         )
       })
       #----------------------------------------------------------
@@ -523,11 +557,11 @@ observeEvent(input$hla_typing_button,{
         seqs <- rbind(rbind(nucleotide, arcashla_mhc_table[i, 2]), rbind(protein, arcashla_mhc_table[i, 3]))
         sequence_file <- rbind(sequence_file, seqs)
       }
-      output_file = paste("./Output/arcashla_",input$sequence,"_",input$imgthla,".txt",sep = "")
-      write(sequence_file,file = output_file)
+      output_file <- paste("./Output/arcashla_", input$sequence, "_", input$imgthla, ".txt", sep = "")
+      write(sequence_file, file = output_file)
       #----------------------------------------------------------
-      dir.create(paste("./Download/arcashla_",input$sequence,"_",input$imgthla,"_zip",sep = ""), showWarnings = FALSE)
-      zip_folder_pathway = paste("./Download/arcashla_",input$sequence,"_",input$imgthla,"_zip",sep = "")
+      zip_folder_pathway <- file.path(WORK_ROOT, "Download", paste0("arcashla_", input$sequence, "_", input$imgthla, "_zip"))
+      dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
       #----------------------------------------------------------
       lines <- readLines(output_file)
       dna_lines <- c()
@@ -548,21 +582,35 @@ observeEvent(input$hla_typing_button,{
       writeLines(protein_lines, protein_file)
       #----------------------------------------------------------
       setwd(zip_folder_pathway)
-      output_file_zip <- zip(file.path(tmp_dir,paste("Download/arcashla_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")), files = ".")
-      output_file_zip_pathway <- paste("Download/arcashla_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
-      setwd(tmp_dir)
+      output_file_zip <- zip(file.path(WORK_ROOT, paste("Download/arcashla_", input$sequence, "_", input$imgthla, "_output.zip", sep = "")), files = ".")
+      output_file_zip_pathway <- paste("Download/arcashla_", input$sequence, "_", input$imgthla, "_output.zip", sep = "")
+      setwd(WORK_ROOT)
       #----------------------------------------------------------
-      output$hla_typing_download <- downloadHandler(
-        filename = function() {
-          paste("arcashla_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")},
-        content = function(file) {
-          file.copy(file.path(tmp_dir,output_file_zip_pathway), file)
-        }
-      )
-      ############################################################
-      # --- [歸檔點] arcasHLA 結束處 ---
-      history_zip <- file.path(history_dir, basename(output_file_zip_pathway))
-      file.copy(file.path(tmp_dir, output_file_zip_pathway), history_zip)
+      zip_name <- paste0("arcashla_", input$sequence, "_", input$imgthla, "_output.zip")
+      zip_src <- file.path(WORK_ROOT, "Download", zip_name)
+      
+      if (!file.exists(zip_src)) {
+        w$hide()
+        shinyalert("Error", paste("ZIP not generated:", zip_src), type = "error")
+        setwd(ori_dir)
+        return()
+      }
+      
+      current_tmp_zip(normalizePath(zip_src, winslash = "/", mustWork = FALSE))
+      current_mode("run")
+      
+      history_zip <- file.path(history_dir, basename(zip_src))
+      ok <- file.copy(zip_src, history_zip, overwrite = TRUE)
+      
+      if (!ok || !file.exists(history_zip)) {
+        w$hide()
+        shinyalert("Error", "Failed to archive ZIP into /root/shiny/History.", type = "error")
+        setwd(ori_dir)
+        return()
+      }
+      
+      current_history_zip(normalizePath(history_zip, winslash = "/", mustWork = FALSE))
+      current_prefix(basename(history_zip))
       
       saveRDS(list(
         table = arcashla_mhc_table,
@@ -570,39 +618,38 @@ observeEvent(input$hla_typing_button,{
         version = input$imgthla,
         tool = input$package,
         job_id = new_id,
-        zip_path = history_zip
+        zip_path = normalizePath(history_zip, winslash = "/", mustWork = FALSE)
       ), file = file.path(history_dir, "result_data.rds"))
-      ############################################################
     }
     #----------------------------------------------------------
-  }else if (input$package == "HLA-HD") {
+  } else if (input$package == "HLA-HD") {
     if (dir.exists("./Output/hlahd")) {
       unlink("./Output/hlahd", recursive = TRUE)
     }
     dir.create("./Output/hlahd", showWarnings = FALSE)
     #----------------------------------------------------------
     if (input$imgthla == "v3.14.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary14 sample ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary14 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.49.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary49 sample ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary49 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.50.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary50 sample ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary50 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.51.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary51 sample ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary51 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.52.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary52 sample ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary52 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.53.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary53 sample ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary53 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.54.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary54 sample ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary54 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.55.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary55 sample ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary55 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.56.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary56 sample ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary56 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.57.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary57 sample ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary57 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.58.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary58 sample ./Output/hlahd",sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary58 sample ./Output/hlahd", sep = ""))
     }
     #-----------------------------------------------------------
     if (dir.exists("./IGV/hlahd")) {
@@ -672,32 +719,34 @@ observeEvent(input$hla_typing_button,{
     igv_fasta_I <- file.path(getwd(), "IGV/hlahd/hlahd_hla_reference_I_igv.fasta")
     igv_fasta_II <- file.path(getwd(), "IGV/hlahd/hlahd_hla_reference_II_igv.fasta")
     # Create IGV Genome reference
-    system(paste("python /root/shiny/Server/hlahd_igv_genome.py", 
-                 input_list_I, 
-                 reference_fasta, 
-                 igv_fasta_I, 
-                 sep = " "))
-    system(paste("python /root/shiny/Server/hlahd_igv_genome.py", 
-                 input_list_II, 
-                 reference_fasta, 
-                 igv_fasta_II, 
-                 sep = " "))
+    system(paste("python /root/shiny/Server/hlahd_igv_genome.py",
+                 input_list_I,
+                 reference_fasta,
+                 igv_fasta_I,
+                 sep = " "
+    ))
+    system(paste("python /root/shiny/Server/hlahd_igv_genome.py",
+                 input_list_II,
+                 reference_fasta,
+                 igv_fasta_II,
+                 sep = " "
+    ))
     
     # Step 1: Modify BAM file using samtools and sed
-    system('samtools view -h ./IGV/hlahd/sample.all.sorted.bam | 
-       sed "s/A:Exon/A_Exon/g; s/B:Exon/B_Exon/g; s/C:Exon/C_Exon/g; s/DPA1:Exon/DPA1_Exon/g; 
-            s/DPB1:Exon/DPB1_Exon/g; s/DQA1:Exon/DQA1_Exon/g; s/DQB1:Exon/DQB1_Exon/g; 
+    system('samtools view -h ./IGV/hlahd/sample.all.sorted.bam |
+       sed "s/A:Exon/A_Exon/g; s/B:Exon/B_Exon/g; s/C:Exon/C_Exon/g; s/DPA1:Exon/DPA1_Exon/g;
+            s/DPB1:Exon/DPB1_Exon/g; s/DQA1:Exon/DQA1_Exon/g; s/DQB1:Exon/DQB1_Exon/g;
             s/DRB1:Exon/DRB1_Exon/g" > ./IGV/hlahd/sample.modified.sam')
     
     # Step 2: Convert modified SAM file back to BAM format
-    system('samtools view -Sb ./IGV/hlahd/sample.modified.sam > ./IGV/hlahd/sample.modified.bam')
+    system("samtools view -Sb ./IGV/hlahd/sample.modified.sam > ./IGV/hlahd/sample.modified.bam")
     
     # Step 3: Modify HLA reference I FASTA file by replacing ':' with '_'
-    system('mv ./IGV/hlahd/hlahd_hla_reference_I_igv.fasta ./IGV/hlahd/hlahd_hla_reference_I_igv_colon.fasta')
+    system("mv ./IGV/hlahd/hlahd_hla_reference_I_igv.fasta ./IGV/hlahd/hlahd_hla_reference_I_igv_colon.fasta")
     system('sed "s/:Exon/_Exon/g" ./IGV/hlahd/hlahd_hla_reference_I_igv_colon.fasta > ./IGV/hlahd/hlahd_hla_reference_I_igv.fasta')
     
     # Step 4: Modify HLA reference II FASTA file by replacing ':' with '_'
-    system('mv ./IGV/hlahd/hlahd_hla_reference_II_igv.fasta ./IGV/hlahd/hlahd_hla_reference_II_igv_colon.fasta')
+    system("mv ./IGV/hlahd/hlahd_hla_reference_II_igv.fasta ./IGV/hlahd/hlahd_hla_reference_II_igv_colon.fasta")
     system('sed "s/:Exon/_Exon/g" ./IGV/hlahd/hlahd_hla_reference_II_igv_colon.fasta > ./IGV/hlahd/hlahd_hla_reference_II_igv.fasta')
     
     # Create reference.fasta index
@@ -738,9 +787,9 @@ observeEvent(input$hla_typing_button,{
     
     # Read the cleaned file
     hlahd <- read.table(temp_file, header = FALSE)
-    hlahd <- hlahd[ ,-1]
-    hlahd$V2 <- sub("HLA-", "",hlahd$V2)
-    hlahd$V3 <- sub("HLA-", "",hlahd$V3)
+    hlahd <- hlahd[, -1]
+    hlahd$V2 <- sub("HLA-", "", hlahd$V2)
+    hlahd$V3 <- sub("HLA-", "", hlahd$V3)
     
     # Remove intermediate files
     file.remove(temp_file)
@@ -748,7 +797,7 @@ observeEvent(input$hla_typing_button,{
     hlahd_stacked <- stack(hlahd)
     hlahd_stacked <- data.frame(allele = hlahd_stacked$values)
     hlahd_stacked <- hlahd_stacked[order(hlahd_stacked$allele), , drop = FALSE]
-    # remove "-", "Not" and "typed" 
+    # remove "-", "Not" and "typed"
     values_to_remove <- c("-", "Not", "typed")
     hlahd_stacked <- subset(hlahd_stacked, !allele %in% values_to_remove)
     #----------------------------------------------------------
@@ -757,15 +806,15 @@ observeEvent(input$hla_typing_button,{
       output$hla_typing_table <- renderDataTable({
         datatable(
           data.frame(Message = "HLA typing unsuccessful: Insufficient sequencing reads detected."),
-          class = 'nowrap'
+          class = "nowrap"
         )
       })
       
       # Define file and directory paths
-      output_file = paste("./Output/hlahd_",input$sequence,"_",input$imgthla,".txt",sep = "")
-      zip_folder_pathway = paste("./Download/hlahd_",input$sequence,"_",input$imgthla,"_zip",sep = "")
-      output_file_zip_pathway <- paste("Download/hlahd_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
-      merged_file = paste("./Pivotable/hlahd_",input$sequence,"_",input$imgthla,"_merged.csv",sep = "")
+      output_file <- paste("./Output/hlahd_", input$sequence, "_", input$imgthla, ".txt", sep = "")
+      zip_folder_pathway <- paste("./Download/hlahd_", input$sequence, "_", input$imgthla, "_zip", sep = "")
+      output_file_zip_pathway <- paste("Download/hlahd_", input$sequence, "_", input$imgthla, "_output.zip", sep = "")
+      merged_file <- paste("./Pivotable/hlahd_", input$sequence, "_", input$imgthla, "_merged.csv", sep = "")
       igv_folder <- "./IGV/hlahd"
       
       # Remove the previous successful typing file (output_file) if it exists
@@ -792,14 +841,14 @@ observeEvent(input$hla_typing_button,{
       if (dir.exists(igv_folder)) {
         unlink(igv_folder, recursive = TRUE)
       }
-      
     } else {
       hlahd_mhc_table <- data.frame(
         Allele = character(nrow(hlahd_stacked)),
         nucleotide = character(nrow(hlahd_stacked)),
-        protein = character(nrow(hlahd_stacked)))
+        protein = character(nrow(hlahd_stacked))
+      )
       for (i in 1:nrow(hlahd_stacked)) {
-        hlahd_mhc_table[i, 1] <- hlahd_stacked[i,]
+        hlahd_mhc_table[i, 1] <- hlahd_stacked[i, ]
       }
       # distinct remove multiple DQB1
       hlahd_mhc_table_unique <- hlahd_mhc_table %>%
@@ -820,20 +869,22 @@ observeEvent(input$hla_typing_button,{
         if (grepl("^[ABC]\\*", seq)) {
           allele_type <- substr(seq, 1, 1)
           allele_number <- sub("^[ABC]\\*([0-9:]+)", "\\1", seq)
-          IMGTHLA_nuc <- switch(allele_type, 
-                                "A" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/A_nuc.fasta", sep = ""), 
-                                "B" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/B_nuc.fasta", sep = ""), 
-                                "C" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/C_nuc.fasta", sep = ""))
+          IMGTHLA_nuc <- switch(allele_type,
+                                "A" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/A_nuc.fasta", sep = ""),
+                                "B" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/B_nuc.fasta", sep = ""),
+                                "C" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/C_nuc.fasta", sep = "")
+          )
         } else {
           # Other types of genes
           allele_type <- substr(seq, 1, 4)
           allele_number <- sub("^.{4}\\*([0-9:]+)", "\\1", seq)
-          IMGTHLA_nuc <- switch(allele_type, 
-                                "DPA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPA1_nuc.fasta", sep = ""), 
-                                "DPB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPB1_nuc.fasta", sep = ""), 
-                                "DQA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQA1_nuc.fasta", sep = ""), 
-                                "DQB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQB1_nuc.fasta", sep = ""), 
-                                "DRB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DRB1_nuc.fasta", sep = ""))
+          IMGTHLA_nuc <- switch(allele_type,
+                                "DPA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPA1_nuc.fasta", sep = ""),
+                                "DPB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPB1_nuc.fasta", sep = ""),
+                                "DQA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQA1_nuc.fasta", sep = ""),
+                                "DQB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQB1_nuc.fasta", sep = ""),
+                                "DRB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DRB1_nuc.fasta", sep = "")
+          )
         }
         if (grepl("N", allele_number)) {
           cmd <- paste("grep", allele_number, IMGTHLA_nuc, "| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq", IMGTHLA_nuc, " - | sed -n '2p' -")
@@ -843,7 +894,7 @@ observeEvent(input$hla_typing_button,{
         result <- system(cmd, intern = TRUE)
         if (length(result) == 0) {
           warning(paste("No result found for allele_number:", allele_number, "in sequence:", seq))
-          hlahd_mhc_table[i, 2] <- NA  # or some other appropriate default value or handling
+          hlahd_mhc_table[i, 2] <- NA # or some other appropriate default value or handling
         } else {
           hlahd_mhc_table[i, 2] <- result
         }
@@ -856,20 +907,22 @@ observeEvent(input$hla_typing_button,{
         if (grepl("^[ABC]\\*", seq)) {
           allele_type <- substr(seq, 1, 1)
           allele_number <- sub("^[ABC]\\*([0-9:]+)", "\\1", seq)
-          IMGTHLA_prot <- switch(allele_type, 
-                                 "A" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/A_prot.fasta", sep = ""), 
-                                 "B" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/B_prot.fasta", sep = ""), 
-                                 "C" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/C_prot.fasta", sep = ""))
+          IMGTHLA_prot <- switch(allele_type,
+                                 "A" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/A_prot.fasta", sep = ""),
+                                 "B" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/B_prot.fasta", sep = ""),
+                                 "C" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/C_prot.fasta", sep = "")
+          )
         } else {
           # Other types of genes
           allele_type <- substr(seq, 1, 4)
           allele_number <- sub("^.{4}\\*([0-9:]+)", "\\1", seq)
-          IMGTHLA_prot <- switch(allele_type, 
-                                 "DPA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPA1_prot.fasta", sep = ""), 
-                                 "DPB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPB1_prot.fasta", sep = ""), 
-                                 "DQA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQA1_prot.fasta", sep = ""), 
-                                 "DQB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQB1_prot.fasta", sep = ""), 
-                                 "DRB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DRB1_prot.fasta", sep = ""))
+          IMGTHLA_prot <- switch(allele_type,
+                                 "DPA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPA1_prot.fasta", sep = ""),
+                                 "DPB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DPB1_prot.fasta", sep = ""),
+                                 "DQA1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQA1_prot.fasta", sep = ""),
+                                 "DQB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DQB1_prot.fasta", sep = ""),
+                                 "DRB1" = paste("/root/shiny/IMGTHLA/", imgthla_version, "/fasta/DRB1_prot.fasta", sep = "")
+          )
         }
         
         if (grepl("N", allele_number)) {
@@ -882,7 +935,7 @@ observeEvent(input$hla_typing_button,{
         
         if (length(result) == 0) {
           warning(paste("No result found for allele_number:", allele_number, "in sequence:", seq))
-          hlahd_mhc_table[i, 3] <- NA  # or some other appropriate default value or handling
+          hlahd_mhc_table[i, 3] <- NA # or some other appropriate default value or handling
         } else {
           hlahd_mhc_table[i, 3] <- result
         }
@@ -897,14 +950,18 @@ observeEvent(input$hla_typing_button,{
                   options = list(
                     pageLength = 8,
                     autoWidth = TRUE,
+                    scrollX = TRUE,
                     columnDefs = list(list(
                       targets = "_all",
+                      width = "100px",
                       render = JS(
                         "function(data, type, row, meta) {",
-                        "return type === 'display' && data != null && data.length > 20 ?",
-                        "'<span title=\"' + data + '\">' + data.substr(0, 20) + '...</span>' : data;",
-                        "}")
-                    )))
+                        "return type === 'display' && data != null && data.length > 40 ?",
+                        "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
+                        "}"
+                      )
+                    ))
+                  )
         )
       })
       #----------------------------------------------------------
@@ -915,11 +972,11 @@ observeEvent(input$hla_typing_button,{
         seqs <- rbind(rbind(nucleotide, hlahd_mhc_table[i, 2]), rbind(protein, hlahd_mhc_table[i, 3]))
         sequence_file <- rbind(sequence_file, seqs)
       }
-      output_file = paste("./Output/hlahd_",input$sequence,"_",input$imgthla,".txt",sep = "")
-      write(sequence_file,file = output_file)
+      output_file <- paste("./Output/hlahd_", input$sequence, "_", input$imgthla, ".txt", sep = "")
+      write(sequence_file, file = output_file)
       #----------------------------------------------------------
-      dir.create(paste("./Download/hlahd_",input$sequence,"_",input$imgthla,"_zip",sep = ""), showWarnings = FALSE)
-      zip_folder_pathway = paste("./Download/hlahd_",input$sequence,"_",input$imgthla,"_zip",sep = "")
+      zip_folder_pathway <- file.path(WORK_ROOT, "Download", paste0("hlahd_", input$sequence, "_", input$imgthla, "_zip"))
+      dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
       #----------------------------------------------------------
       lines <- readLines(output_file)
       dna_lines <- c()
@@ -940,25 +997,37 @@ observeEvent(input$hla_typing_button,{
       writeLines(protein_lines, protein_file)
       #----------------------------------------------------------
       setwd(zip_folder_pathway)
-      output_file_zip <- zip(file.path(tmp_dir,paste("Download/hlahd_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")), files = ".")
-      output_file_zip_pathway <- paste("Download/hlahd_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")
-      setwd(tmp_dir)
+      output_file_zip <- zip(file.path(WORK_ROOT, paste("Download/hlahd_", input$sequence, "_", input$imgthla, "_output.zip", sep = "")), files = ".")
+      output_file_zip_pathway <- paste("Download/hlahd_", input$sequence, "_", input$imgthla, "_output.zip", sep = "")
+      setwd(WORK_ROOT)
       #----------------------------------------------------------
-      output$hla_typing_download <- downloadHandler(
-        filename = function() {
-          paste("hlahd_",input$sequence,"_",input$imgthla,"_output.zip",sep = "")},
-        content = function(file) {
-          file.copy(file.path(tmp_dir,output_file_zip_pathway),file)
-        }
-      )
-      ############################################################
-      # --- [歸檔點] HLA-HD 結束處 ---
-      # 1. 備份 IGV
       backup_igv_files("HLA-HD", new_id)
       
-      # 2. 備份 Zip
-      history_zip <- file.path(history_dir, basename(output_file_zip_pathway))
-      file.copy(file.path(tmp_dir, output_file_zip_pathway), history_zip)
+      zip_name <- paste0("hlahd_", input$sequence, "_", input$imgthla, "_output.zip")
+      zip_src <- file.path(WORK_ROOT, "Download", zip_name)
+      
+      if (!file.exists(zip_src)) {
+        w$hide()
+        shinyalert("Error", paste("ZIP not generated:", zip_src), type = "error")
+        setwd(ori_dir)
+        return()
+      }
+      
+      current_tmp_zip(normalizePath(zip_src, winslash = "/", mustWork = FALSE))
+      current_mode("run")
+      
+      history_zip <- file.path(history_dir, basename(zip_src))
+      ok <- file.copy(zip_src, history_zip, overwrite = TRUE)
+      
+      if (!ok || !file.exists(history_zip)) {
+        w$hide()
+        shinyalert("Error", "Failed to archive ZIP into /root/shiny/History.", type = "error")
+        setwd(ori_dir)
+        return()
+      }
+      
+      current_history_zip(normalizePath(history_zip, winslash = "/", mustWork = FALSE))
+      current_prefix(basename(history_zip))
       
       saveRDS(list(
         table = hlahd_mhc_table,
@@ -966,13 +1035,10 @@ observeEvent(input$hla_typing_button,{
         version = input$imgthla,
         tool = input$package,
         job_id = new_id,
-        zip_path = history_zip
+        zip_path = normalizePath(history_zip, winslash = "/", mustWork = FALSE)
       ), file = file.path(history_dir, "result_data.rds"))
-      ############################################################
-      
     }
-    #----------------------------------------------------------
-  }else if (input$package == "T1K") {
+  } else if (input$package == "T1K") {
     convert_fa_to_fq <- function(fa_path, fq_path) {
       awk_cmd <- sprintf(
         "awk 'BEGIN{OFS=\"\\n\"} /^>/ {h=$0; next} {qual=\"\"; for(i=1;i<=length($0);i++) qual=qual\"I\"; print h, $0, \"+\", qual}' %s > %s",
@@ -987,9 +1053,8 @@ observeEvent(input$hla_typing_button,{
     origin_fa <- file.path(imgt_dir, paste0("IMGTHLA_", imgt_version_number, "_", seq_suffix, "_seq.fa"))
     igv_fa <- file.path(imgt_dir, paste0("IMGTHLA_", imgt_version_number, "_", seq_suffix, "_seq_igv.fa"))
     #----------------------------------------------------------
-    tmp_dir <- tempdir()
-    base_output_dir <- file.path(tmp_dir, "Output", "t1k")
-    igv_out_dir <- file.path(tmp_dir, "IGV", "t1k")
+    base_output_dir <- file.path(WORK_ROOT, "Output", "t1k")
+    igv_out_dir <- file.path(WORK_ROOT, "IGV", "t1k")
     
     if (dir.exists(base_output_dir)) unlink(base_output_dir, recursive = TRUE)
     dir.create(base_output_dir, recursive = TRUE, showWarnings = FALSE)
@@ -1012,7 +1077,7 @@ observeEvent(input$hla_typing_button,{
     #----------------------------------------------------------
     fa1 <- file.path(base_output_dir, "t1k_aligned_1.fa")
     fa2 <- file.path(base_output_dir, "t1k_aligned_2.fa")
-
+    
     system(paste("/T1K/replace_fasta_colon.sh", origin_fa, igv_fa))
     system(paste("bwa index", igv_fa))
     
@@ -1043,7 +1108,9 @@ observeEvent(input$hla_typing_button,{
     
     extract_alleles <- function(row) {
       gene <- row[[1]]
-      if (!gene %in% keep_genes) return(NULL)
+      if (!gene %in% keep_genes) {
+        return(NULL)
+      }
       
       alleles <- c()
       if (row[[3]] != "." && row[[3]] != "0" && row[[3]] != "-") alleles <- c(alleles, row[[3]])
@@ -1056,12 +1123,14 @@ observeEvent(input$hla_typing_button,{
         }
       }
       
-      if (length(alleles) == 0) return(NULL)
+      if (length(alleles) == 0) {
+        return(NULL)
+      }
       
       data.frame(
         Allele = alleles,
-        nucleotide = "",  
-        protein = "",     
+        nucleotide = "",
+        protein = "",
         stringsAsFactors = FALSE
       )
     }
@@ -1081,13 +1150,17 @@ observeEvent(input$hla_typing_button,{
       fasta_path <- file.path("/root/shiny/IMGTHLA", imgthla_version, "fasta", paste0(gene_name, "_nuc.fasta"))
       
       if (grepl("N", allele_number)) {
-        cmd <- paste("grep", allele_number, fasta_path,
-                     "| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",
-                     fasta_path, "-", "| sed -n '2p'")
+        cmd <- paste(
+          "grep", allele_number, fasta_path,
+          "| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",
+          fasta_path, "-", "| sed -n '2p'"
+        )
       } else {
-        cmd <- paste("grep", allele_number, fasta_path,
-                     "| grep -v 'N' | sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",
-                     fasta_path, "-", "| sed -n '2p'")
+        cmd <- paste(
+          "grep", allele_number, fasta_path,
+          "| grep -v 'N' | sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",
+          fasta_path, "-", "| sed -n '2p'"
+        )
       }
       
       result <- system(cmd, intern = TRUE)
@@ -1109,13 +1182,17 @@ observeEvent(input$hla_typing_button,{
       fasta_path <- file.path("/root/shiny/IMGTHLA", imgthla_version, "fasta", paste0(gene_name, "_prot.fasta"))
       
       if (grepl("N", allele_number)) {
-        cmd <- paste("grep", allele_number, fasta_path,
-                     "| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",
-                     fasta_path, "-", "| sed -n '2p'")
+        cmd <- paste(
+          "grep", allele_number, fasta_path,
+          "| sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",
+          fasta_path, "-", "| sed -n '2p'"
+        )
       } else {
-        cmd <- paste("grep", allele_number, fasta_path,
-                     "| grep -v 'N' | sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",
-                     fasta_path, "-", "| sed -n '2p'")
+        cmd <- paste(
+          "grep", allele_number, fasta_path,
+          "| grep -v 'N' | sort -t: -k2,2n -k3,3n -k4,4n | sed 's/^>//g' | seqtk subseq",
+          fasta_path, "-", "| sed -n '2p'"
+        )
       }
       
       result <- system(cmd, intern = TRUE)
@@ -1137,14 +1214,18 @@ observeEvent(input$hla_typing_button,{
                 options = list(
                   pageLength = 8,
                   autoWidth = TRUE,
+                  scrollX = TRUE,
                   columnDefs = list(list(
+                    width = "100px",
                     targets = "_all",
                     render = JS(
                       "function(data, type, row, meta) {",
-                      "return type === 'display' && data != null && data.length > 20 ?",
-                      "'<span title=\"' + data + '\">' + data.substr(0, 20) + '...</span>' : data;",
-                      "}")
-                  )))
+                      "return type === 'display' && data != null && data.length > 40 ?",
+                      "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
+                      "}"
+                    )
+                  ))
+                )
       )
     })
     #----------------------------------------------------------
@@ -1164,13 +1245,13 @@ observeEvent(input$hla_typing_button,{
       sequence_file <- rbind(sequence_file, seqs)
     }
     
-    output_file <- file.path(tmp_dir, "Output", paste0("t1k_", input$sequence, "_", input$imgthla, ".txt"))
+    output_file <- file.path(WORK_ROOT, "Output", paste0("t1k_", input$sequence, "_", input$imgthla, ".txt"))
     write(sequence_file, file = output_file)
     #----------------------------------------------------------
-    zip_folder_pathway <- file.path(tmp_dir, paste0("Download/t1k_", input$sequence, "_", input$imgthla, "_zip"))
+    zip_folder_pathway <- file.path(WORK_ROOT, paste0("Download/t1k_", input$sequence, "_", input$imgthla, "_zip"))
     dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
     
-    output_file <- file.path(tmp_dir, paste0("Output/t1k_", input$sequence, "_", input$imgthla, ".txt"))
+    output_file <- file.path(WORK_ROOT, paste0("Output/t1k_", input$sequence, "_", input$imgthla, ".txt"))
     lines <- readLines(output_file)
     
     dna_lines <- c()
@@ -1193,26 +1274,25 @@ observeEvent(input$hla_typing_button,{
     writeLines(protein_lines, protein_file)
     #----------------------------------------------------------
     setwd(zip_folder_pathway)
-    output_file_zip_pathway <- file.path(tmp_dir, paste0("Download/t1k_", input$sequence, "_", input$imgthla, "_output.zip"))
+    output_file_zip_pathway <- file.path(WORK_ROOT, paste0("Download/t1k_", input$sequence, "_", input$imgthla, "_output.zip"))
     zip(zipfile = output_file_zip_pathway, files = list.files(".", full.names = FALSE))
-    setwd(tmp_dir)
-    
-    output$hla_typing_download <- downloadHandler(
-      filename = function() {
-        paste0("t1k_", input$sequence, "_", input$imgthla, "_output.zip")
-      },
-      content = function(file) {
-        file.copy(output_file_zip_pathway, file)
-      }
-    )
-    ############################################################
-    # --- [歸檔點] T1K 結束處 ---
-    # 1. 備份 IGV
+    setwd(WORK_ROOT)
+    #----------------------------------------------------------
     backup_igv_files("T1K", new_id)
     
-    # 2. 備份 Zip
-    history_zip <- file.path(history_dir, basename(output_file_zip_pathway))
-    file.copy(file.path(tmp_dir, output_file_zip_pathway), history_zip)
+    zip_src <- output_file_zip_pathway
+    history_zip <- file.path(history_dir, basename(zip_src))
+    ok <- file.copy(zip_src, history_zip, overwrite = TRUE)
+    
+    if (!ok || !file.exists(history_zip)) {
+      w$hide()
+      shinyalert("Error", "Failed to archive ZIP into /root/shiny/History.", type = "error")
+      setwd(ori_dir)
+      return()
+    }
+    
+    current_history_zip(normalizePath(history_zip, winslash = "/", mustWork = FALSE))
+    current_prefix(basename(history_zip))
     
     saveRDS(list(
       table = t1k_mhc_table,
@@ -1220,11 +1300,12 @@ observeEvent(input$hla_typing_button,{
       version = input$imgthla,
       tool = input$package,
       job_id = new_id,
-      zip_path = history_zip
+      zip_path = normalizePath(history_zip, winslash = "/", mustWork = FALSE)
     ), file = file.path(history_dir, "result_data.rds"))
-    ############################################################
-    #----------------------------------------------------------
   }
+  #----------------------------------------------------------
+  
+  
   w$hide()
   #----------------------------------------------------------
   # Calculate execution time
@@ -1232,10 +1313,20 @@ observeEvent(input$hla_typing_button,{
   execution_time <- difftime(end_time, start_time, units = "secs")
   execution_time <- round(as.numeric(execution_time), 0)
   
-  # Record the current time and execution time
-  log_entry <- paste(getCurrentTime(), "-",input$sequence,"|",input$imgthla,"|",input$package,"|","Execution Time:", execution_time, "seconds.")
+  # Get current JobID
+  jid <- current_job_id()
   
-  # Append the new execution time to the existing log, adding from top to bottom
+  # Record the current time, jobid and execution time
+  log_entry <- paste(
+    getCurrentTime(),
+    "| JobID=", jid,
+    "|", input$sequence,
+    "|", input$imgthla,
+    "|", input$package,
+    "| Execution:", execution_time, "s"
+  )
+  
+  # Append the new execution time to the existing log (newest on top)
   execution_times$times <- c(log_entry, execution_times$times)
   
   # Display all execution times line by line
@@ -1249,3 +1340,49 @@ observeEvent(input$hla_typing_button,{
   #----------------------------------------------------------
   setwd(ori_dir)
 })
+
+#----------------------------------------------------------
+# Download Handler (Global Scope)
+#----------------------------------------------------------
+resolve_download_zip <- function() {
+  tmp <- current_tmp_zip()
+  if (!is.null(tmp) && nzchar(tmp) && file.exists(tmp)) {
+    return(tmp)
+  }
+  
+  hz <- current_history_zip()
+  if (!is.null(hz) && nzchar(hz) && file.exists(hz)) {
+    return(hz)
+  }
+  
+  jid <- current_job_id()
+  if (!is.null(jid) && nzchar(jid)) {
+    rds <- file.path("/root/shiny/History", jid, "result_data.rds")
+    if (file.exists(rds)) {
+      ld <- readRDS(rds)
+      if (!is.null(ld$zip_path) && file.exists(ld$zip_path)) {
+        return(ld$zip_path)
+      }
+    }
+  }
+  NULL
+}
+
+output$hla_typing_download <- downloadHandler(
+  filename = function() {
+    nm <- current_prefix()
+    if (is.null(nm) || !nzchar(nm)) {
+      paste0("HLA_typing_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".zip")
+    } else {
+      nm
+    }
+  },
+  content = function(file) {
+    src <- resolve_download_zip()
+    shiny::validate(need(
+      !is.null(src) && file.exists(src),
+      "No downloadable result is currently loaded. Please run or reload a job."
+    ))
+    file.copy(src, file, overwrite = TRUE)
+  }
+)

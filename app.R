@@ -68,7 +68,7 @@ ui <- bs4DashPage(
         HTML("
         .dataTables_wrapper .dataTables_paginate .paginate_button {padding: 0;margin: 0;}
         table.dataTable {width: 100% !important;}
-        .dataTables_wrapper {width: 100%;overflow-x: auto;}
+        .dataTables_wrapper {width: 100%;}
       "),
         HTML("
         Shiny.addCustomMessageHandler('keepProgressBar', function(message) {
@@ -90,6 +90,69 @@ ui <- bs4DashPage(
         HTML("
         .radio-inline {
           margin-right: 20px;
+        }
+      "),
+        HTML("
+        .summary-box {
+          min-height: 120px !important;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+        }
+        #hla_typing_table {
+          width: 100% !important;
+          margin: 0 auto;
+        }
+        .dataTables_filter input {
+          border-radius: 20px;
+          padding: 5px 15px;
+          border: 1px solid #ddd;
+        }
+      "),
+        HTML("
+        /* Result tab horizontal scroll */
+        .hla-result-scroll{
+          width: 100%;
+          overflow-x: auto;
+          overflow-y: visible;
+          padding-bottom: 6px;
+        }
+        .hla-result-inner{
+          min-width: 1100px;
+        }
+        .hla-result-inner .row{
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+        }
+        #hla_box .card-body{
+          overflow: visible !important;
+        }
+        #hla_box .dataTables_wrapper{
+          overflow: visible !important;
+        }
+        #summary_boxes .summary-scroll{
+          width: 100%;
+          overflow-x: auto;
+          overflow-y: hidden;
+        }
+        
+        #summary_boxes .summary-strip{
+          display: flex;
+          flex-wrap: nowrap;
+          width: 100%;
+        }
+        
+        #summary_boxes .summary-item{
+          flex: 1 1 25%;   
+          min-width: 260px;      
+          padding: 0 8px;
+          box-sizing: border-box;
+        }
+        
+        #summary_boxes .summary-box{
+          width: 100% !important;
+          min-height: 110px !important;
+          margin-bottom: 0 !important;
         }
       ")
       ),
@@ -114,6 +177,17 @@ ui <- bs4DashPage(
 
 ## Server
 server <- function(input, output, session) {
+  # --- global reactive states (single source of truth) ---
+  current_job_id      <- reactiveVal(NULL)
+  current_tmp_zip     <- reactiveVal(NULL)
+  current_history_zip <- reactiveVal(NULL)
+  current_mode        <- reactiveVal("run")
+  package_value   <- reactiveVal("")
+  current_zippath <- reactiveVal(NULL)
+  current_prefix  <- reactiveVal(NULL)
+  HISTORY_ROOT <- "/root/shiny/History"
+  dir.create(HISTORY_ROOT, recursive = TRUE, showWarnings = FALSE)
+  
   ## home page
   source("Server/1_home_html.R",local = TRUE)$value
   
