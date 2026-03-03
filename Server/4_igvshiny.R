@@ -33,22 +33,22 @@ backup_igv_files <- function(tool, job_id) {
                        "HLA-HD"   = directory_h,
                        "T1K"      = directory_t
   )
-  
+
   target_dir <- file.path(HISTORY_ROOT, job_id, "IGV")
   dir.create(target_dir, recursive = TRUE, showWarnings = FALSE)
-  
+
   files_to_move <- list.files(source_dir, full.names = TRUE)
   if (length(files_to_move) == 0) {
     return(invisible(FALSE))
   }
-  
+
   ok <- file.rename(files_to_move, file.path(target_dir, basename(files_to_move)))
   if (any(!ok)) {
     need_copy <- files_to_move[!ok]
     file.copy(need_copy, target_dir, overwrite = TRUE)
     file.remove(need_copy)
   }
-  
+
   invisible(TRUE)
 }
 
@@ -118,8 +118,10 @@ observeEvent(
     active_dir <- get_active_igv_dir(current_tool)
     
     if (current_tool == "OptiType") {
-      fasta_path_o <- file.path(active_dir, "optitype_hla_reference_igv.fasta")
-      fastaindex_path_o <- file.path(active_dir, "optitype_hla_reference_igv.fasta.fai")
+      ## fasta_path_o <- file.path(active_dir, "optitype_hla_reference_igv.fasta")
+      ## fastaindex_path_o <- file.path(active_dir, "optitype_hla_reference_igv.fasta.fai")
+      fasta_path_o <- file.path(active_dir, "optitype.igv.fasta")
+      fastaindex_path_o <- file.path(active_dir, "optitype.igv.fasta.fai")
       
       if (!file.exists(fasta_path_o)) {
         shinyalert("Error", "Required FASTA file is missing for OptiType in current directory.", type = "error")
@@ -200,7 +202,8 @@ observeEvent(
 ### OptiType
 load_and_show_region_optitype <- function(igv_id) {
   active_dir <- get_active_igv_dir("OptiType")
-  bam_file <- file.path(active_dir, "optitype_merge_filtered.bam")
+  ## bam_file <- file.path(active_dir, "optitype_merge_filtered.bam")
+  bam_file <- file.path(active_dir, "optitype.igv.bam")
   if (file.exists(bam_file)) {
     x <- readGAlignments(bam_file, param = Rsamtools::ScanBamParam(what = "seq"))
     loadBamTrackFromLocalData(session, id = igv_id, trackName = "OptiType Alignment", data = x)

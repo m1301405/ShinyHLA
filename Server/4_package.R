@@ -100,7 +100,7 @@ observeEvent(input$hla_typing_button, {
     if (file.exists(sorted_bam1)) file.remove(sorted_bam1)
     if (file.exists(sorted_bam2)) file.remove(sorted_bam2)
     
-    # --- Extract the "main sequence" from the alignment file ---
+    # Extract the "main sequence" from the alignment file
     
     merged_bam <- "./IGV/optitype/optitype_merge.bam"
     merged_sam <- "./IGV/optitype/optitype_merge.sam"
@@ -130,6 +130,41 @@ observeEvent(input$hla_typing_button, {
     if (file.exists(merged_bam)) file.remove(merged_bam)
     if (file.exists(merged_sam)) file.remove(merged_sam)
     if (file.exists(filtered_sam)) file.remove(filtered_sam)
+    
+    ## Clean BAM (remove 0x800 + 0x100)
+    clean_unsorted <- "./IGV/optitype/optitype_clean.unsorted.bam"
+    clean_bam <- "./IGV/optitype/optitype_clean.bam"
+    
+    if (file.exists(filtered_bam)) {
+      
+      # 1️⃣ Remove supplementary + secondary (keep header)
+      cmd_view <- paste(
+        "samtools view -bh -F 0x900",
+        shQuote(filtered_bam),
+        "-o",
+        shQuote(clean_unsorted)
+      )
+      system(cmd_view)
+      
+      # 2️⃣ Sort for safety
+      cmd_sort <- paste(
+        "samtools sort -o",
+        shQuote(clean_bam),
+        shQuote(clean_unsorted)
+      )
+      system(cmd_sort)
+      
+      # 3️⃣ Index
+      system(paste("samtools index", shQuote(clean_bam)))
+      
+      # 4️⃣ Remove intermediate file
+      if (file.exists(clean_unsorted)) {
+        file.remove(clean_unsorted)
+      }
+      
+    } else {
+      message("[Warning] filtered BAM not found. Clean step skipped.")
+    }
     
     # --- Extract data based on the matched reference ---
     
@@ -290,6 +325,285 @@ observeEvent(input$hla_typing_button, {
       }
       output_file <- paste("./Output/optitype_", input$sequence, "_", input$imgthla, ".txt", sep = "")
       write(sequence_file, file = output_file)
+      #----------------------------------------------------------
+      # Extract typed allele list (safe version)
+      allele_txt <- output_file
+      allele_list_file <- "./IGV/optitype/typed_alleles.txt"
+      
+      if (file.exists(allele_txt)) {
+        
+        extract_cmd <- paste(
+          "grep '^>'", shQuote(allele_txt),
+          "| sed 's/^>//'",
+          "| sed 's/_nucleotide$//'",
+          "| sed 's/_protein$//'",
+          "| sort -u",
+          ">",
+          shQuote(allele_list_file)
+        )
+        
+        system(extract_cmd)
+        
+        if (!file.exists(allele_list_file)) {
+          message("[Error] Failed to generate typed allele list.")
+        }
+        
+      } else {
+        message("[Warning] Allele txt not found.")
+      }
+      #----------------------------------------------------------
+      # NEW: Build contig mapping (safe)
+      allelelist_path <- file.path("/root/shiny/IMGTHLA", input$imgthla, "Allelelist.txt")
+      contig_map_file <- "./IGV/optitype/contig2allele4.tsv"
+      
+      if (file.exists(allelelist_path)) {
+        
+        awk_cmd <- paste(
+          "awk -v OFS='\\t' 'NF>=2 {print $1,$2}'",
+          shQuote(allelelist_path),
+          ">",
+          shQuote(contig_map_file)
+        )
+        
+        system(awk_cmd)
+        
+        if (!file.exists(contig_map_file)) {
+          message("[Error] Failed to generate contig mapping file.")
+        }
+        
+      } else {
+        message("[Warning] Allelelist.txt not found.")
+      }
+      #----------------------------------------------------------
+      # Map typed 2-field → contig IDs
+      allele_list_file   <- "./IGV/optitype/typed_alleles.txt"
+      contig_map_file    <- "./IGV/optitype/contig2allele4.tsv"
+      target_contig_file <- "./IGV/optitype/target_contigs.txt"
+      
+      if (file.exists(allele_list_file) && file.exists(contig_map_file)) {
+        
+        join_cmd <- paste(
+          "awk -F'\\t' 'NR==FNR{t[$1]=1;next}",
+          "{split($2,x,\":\");key=x[1]\":\"x[2]; if(key in t) print $1}'",
+          shQuote(allele_list_file),
+          shQuote(contig_map_file),
+          "| sort -u >",
+          shQuote(target_contig_file)
+        )
+        
+        system(join_cmd)
+        
+        if (file.exists(target_contig_file)) {
+          n_contigs <- length(readLines(target_contig_file))
+          message("[Info] Target contigs detected: ", n_contigs)
+        }
+        
+        if (!file.exists(target_contig_file)) {
+          message("[Error] Failed to generate target_contigs.txt")
+        }
+        
+      } else {
+        message("[Warning] Missing typed_alleles.txt or contig2allele4.tsv")
+      }
+      #----------------------------------------------------------
+      # --- NEW: keep only contigs with mapped reads > 0, then intersect with target_contigs.txt ---
+      target_contigs <- "./IGV/optitype/target_contigs.txt"
+      
+      bam_contigs_mapped <- "./IGV/optitype/bam_contigs_mapped.txt"
+      target_contigs_mapped_present <- "./IGV/optitype/target_contigs_mapped_present.txt"
+      
+      if (file.exists(clean_bam) && file.exists(target_contigs)) {
+        
+        system(paste(
+          "samtools idxstats", shQuote(clean_bam),
+          "| awk -F'\\t' '$3>0 {print $1}' >",
+          shQuote(bam_contigs_mapped)
+        ))
+        
+        system(paste(
+          "grep -Fxf", shQuote(bam_contigs_mapped), shQuote(target_contigs),
+          ">", shQuote(target_contigs_mapped_present)
+        ))
+        
+      } else {
+        message("[Warning] clean_bam or target_contigs missing; cannot build mapped-present contigs list.")
+      }
+      #----------------------------------------------------------
+      # NEW: Build target BAM (mapped contigs only)
+      target_bam <- "./IGV/optitype/optitype_target.bam"
+      
+      if (file.exists(clean_bam) && file.exists(target_contigs_mapped_present)) {
+        
+        ctgs <- readLines(target_contigs_mapped_present)
+        ctgs <- ctgs[nzchar(ctgs)]
+        
+        if (length(ctgs) > 0) {
+          
+          view_cmd <- paste(
+            "samtools view -b",
+            shQuote(clean_bam),
+            paste(shQuote(ctgs), collapse = " ")
+          )
+          
+          sort_cmd <- paste(
+            "samtools sort -o",
+            shQuote(target_bam),
+            "-"
+          )
+          
+          system(paste(view_cmd, "|", sort_cmd))
+          system(paste("samtools index", shQuote(target_bam)))
+          
+        } else {
+          message("[Warning] No mapped target contigs found.")
+        }
+        
+      } else {
+        message("[Warning] clean_bam or target_contigs_mapped_present missing.")
+      }
+      #----------------------------------------------------------
+      # NEW: Build rename map (2-field)
+      rename_map <- "./IGV/optitype/rename_map.tsv"
+      target_contigs_mapped_present <- "./IGV/optitype/target_contigs_mapped_present.txt"
+      contig_map_file <- "./IGV/optitype/contig2allele4.tsv"
+      
+      if (file.exists(target_contigs_mapped_present) && file.exists(contig_map_file)) {
+        
+        awk_cmd <- paste(
+          "awk -F'\\t' '",
+          "NR==FNR {keep[$1]=1; next}",
+          "{",
+          "ctg=$1; allele=$2;",
+          "if (ctg in keep) {",
+          "split(allele,x,\":\");",
+          "key=x[1]\":\"x[2];",
+          "gsub(\":\",\"-\",key);",
+          "print ctg\"\\tHLA-\"key",
+          "}",
+          "}'",
+          target_contigs_mapped_present,
+          contig_map_file,
+          ">",
+          rename_map
+        )
+        
+        system(awk_cmd)
+        
+      } else {
+        message("[Warning] Cannot build rename_map.tsv")
+      }
+      #----------------------------------------------------------
+      # NEW: Reheader BAM for IGV
+      target_bam <- "./IGV/optitype/optitype_target.bam"
+      final_bam  <- "./IGV/optitype/optitype.igv.bam"
+      
+      header_file <- "./IGV/optitype/header.sam"
+      header_renamed <- "./IGV/optitype/header.renamed.sam"
+      
+      if (file.exists(target_bam) && file.exists(rename_map)) {
+        
+        # Extract header
+        system(paste("samtools view -H", shQuote(target_bam), ">", shQuote(header_file)))
+        
+        # Rename SN: safely without breaking tabs
+        awk_cmd <- paste(
+          "awk '",
+          "NR==FNR {map[$1]=$2; next}",
+          "{",
+          "for (old in map) {",
+          "gsub(\"SN:\" old, \"SN:\" map[old])",
+          "}",
+          "print",
+          "}'",
+          rename_map,
+          header_file,
+          ">",
+          header_renamed
+        )
+        
+        system(awk_cmd)
+        
+        # Apply new header
+        system(paste(
+          "samtools reheader",
+          shQuote(header_renamed),
+          shQuote(target_bam),
+          ">",
+          shQuote(final_bam)
+        ))
+        
+        system(paste("samtools index", shQuote(final_bam)))
+        
+      } else {
+        message("[Warning] Cannot reheader BAM")
+      }
+      #----------------------------------------------------------
+      # NEW: Build IGV FASTA (renamed)
+      igv_fasta_original <- "./IGV/optitype/optitype_hla_reference_igv.fasta"
+      final_fasta <- "./IGV/optitype/optitype.igv.fasta"
+      tmp_fasta <- "./IGV/optitype/optitype.igv.tmp.fasta"
+      
+      rename_contigs <- "./IGV/optitype/rename_contigs.txt"
+      
+      if (file.exists(rename_map) && file.exists(igv_fasta_original)) {
+        
+        # Extract original contig names
+        system(paste("cut -f1", shQuote(rename_map), ">", shQuote(rename_contigs)))
+        
+        # Extract sequences
+        system(paste(
+          "samtools faidx",
+          shQuote(igv_fasta_original),
+          "`cat", rename_contigs, "`",
+          ">",
+          shQuote(tmp_fasta)
+        ))
+        
+        # Rename FASTA header
+        awk_cmd <- paste(
+          "awk '",
+          "NR==FNR {map[$1]=$2; next}",
+          "{",
+          "if($0 ~ /^>/){",
+          "name=substr($0,2);",
+          "print \">\" map[name]",
+          "} else {print}",
+          "}'",
+          rename_map,
+          tmp_fasta,
+          ">",
+          final_fasta
+        )
+        
+        system(awk_cmd)
+        
+        system(paste("samtools faidx", shQuote(final_fasta)))
+        
+      } else {
+        message("[Warning] Cannot build IGV FASTA")
+      }
+      #----------------------------------------------------------
+      # FINAL CLEANUP (single BAM architecture)
+      files_to_remove <- c(
+        header_file,
+        header_renamed,
+        tmp_fasta,
+        rename_contigs,
+        bam_contigs_mapped,
+        target_contigs,
+        target_contigs_mapped_present,
+        rename_map,
+        contig_map_file,
+        allele_list_file,
+        "./IGV/optitype/optitype_target.bam",
+        "./IGV/optitype/optitype_target.bam.bai",
+        "./IGV/optitype/optitype_clean.bam",
+        "./IGV/optitype/optitype_clean.bam.bai"
+      )
+      
+      for (f in files_to_remove) {
+        if (file.exists(f)) file.remove(f)
+      }
       #----------------------------------------------------------
       zip_folder_pathway <- file.path(WORK_ROOT, "Download", paste0("optitype_", input$sequence, "_", input$imgthla, "_zip"))
       dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
