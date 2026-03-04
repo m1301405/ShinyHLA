@@ -137,7 +137,7 @@ observeEvent(input$hla_typing_button, {
     
     if (file.exists(filtered_bam)) {
       
-      # 1️⃣ Remove supplementary + secondary (keep header)
+      # Remove supplementary + secondary (keep header)
       cmd_view <- paste(
         "samtools view -bh -F 0x900",
         shQuote(filtered_bam),
@@ -146,7 +146,7 @@ observeEvent(input$hla_typing_button, {
       )
       system(cmd_view)
       
-      # 2️⃣ Sort for safety
+      # Sort for safety
       cmd_sort <- paste(
         "samtools sort -o",
         shQuote(clean_bam),
@@ -154,10 +154,10 @@ observeEvent(input$hla_typing_button, {
       )
       system(cmd_sort)
       
-      # 3️⃣ Index
+      # Index
       system(paste("samtools index", shQuote(clean_bam)))
       
-      # 4️⃣ Remove intermediate file
+      # Remove intermediate file
       if (file.exists(clean_unsorted)) {
         file.remove(clean_unsorted)
       }
@@ -291,30 +291,6 @@ observeEvent(input$hla_typing_button, {
         }
         optitype_mhc_table[i, 3] <- system(cmd, intern = TRUE)
       }
-      #----------------------------------------------------------
-      output$hla_typing_table <- renderDataTable({
-        datatable(optitype_mhc_table,
-                  filter = "top",
-                  rownames = FALSE,
-                  selection = "none",
-                  class = "nowrap",
-                  options = list(
-                    pageLength = 8,
-                    autoWidth = TRUE,
-                    scrollX = TRUE,
-                    columnDefs = list(list(
-                      width = "100px",
-                      targets = "_all",
-                      render = JS(
-                        "function(data, type, row, meta) {",
-                        "return type === 'display' && data != null && data.length > 40 ?",
-                        "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
-                        "}"
-                      )
-                    ))
-                  )
-        )
-      })
       #----------------------------------------------------------
       sequence_file <- NULL
       for (i in 1:nrow(optitype_mhc_table)) {
@@ -604,6 +580,175 @@ observeEvent(input$hla_typing_button, {
       for (f in files_to_remove) {
         if (file.exists(f)) file.remove(f)
       }
+      #----------------------------------------------------------
+      # Extract contig list and caculate coverage/meandepth
+      bam   <- "./IGV/optitype/optitype.igv.bam"
+      fasta <- "./IGV/optitype/optitype.igv.fasta"
+      
+      igv_contigs <- "./IGV/optitype/igv_contigs.txt"
+      qc_tsv      <- "./IGV/optitype/coverage_tmp.tsv"
+      
+      # contig list
+      system(paste(
+        "grep '^>'", shQuote(fasta),
+        "| sed 's/^>//' >",
+        shQuote(igv_contigs)
+      ))
+      
+      # QC tsv
+      system(paste(
+        "printf 'HLA\\tCoverage\\tMeanDepth\\n' >", shQuote(qc_tsv), "&&",
+        "while IFS= read -r ctg; do",
+        "[ -z \"$ctg\" ] && continue;",
+        "samtools depth -a -r \"$ctg\"", shQuote(bam),
+        "| awk -v C=\"$ctg\" '{sum+=$3; n++; if($3>0) cov++} END{",
+        "if(n==0){printf \"%s\\tNA\\tNA\\n\", C}",
+        "else{printf \"%s\\t%.6f\\t%.6f\\n\", C, cov/n, sum/n}",
+        "}' >>", shQuote(qc_tsv), ";",
+        "done <", shQuote(igv_contigs)
+      ))
+      #----------------------------------------------------------
+      # merge to optitype_mhc_table
+      qc <- read.table(qc_tsv, sep="\t", header=TRUE, stringsAsFactors=FALSE)
+      
+      to_igv_key <- function(a){
+        parts <- strsplit(a, ":", fixed=TRUE)[[1]]
+        a2 <- if (length(parts) >= 2) paste(parts[1], parts[2], sep=":") else a
+        paste0("HLA-", gsub(":", "-", a2, fixed=TRUE))
+      }
+      
+      optitype_mhc_table$IGV_KEY <- vapply(optitype_mhc_table$Allele, to_igv_key, character(1))
+      
+      qc <- read.table(qc_tsv, sep = "\t", header = TRUE, stringsAsFactors = FALSE, check.names = FALSE)
+      
+      need_cols <- c("HLA", "Coverage", "MeanDepth")
+      if (!all(need_cols %in% colnames(qc))) {
+        stop("[Error] qc_tsv header invalid. Got: ", paste(colnames(qc), collapse = ", "))
+      }
+      
+      qc <- qc[!duplicated(qc$HLA), ]
+      
+      to_igv_key <- function(a){
+        parts <- strsplit(a, ":", fixed = TRUE)[[1]]
+        a2 <- if (length(parts) >= 2) paste(parts[1], parts[2], sep=":") else a
+        paste0("HLA-", gsub(":", "-", a2, fixed = TRUE))
+      }
+      optitype_mhc_table$IGV_KEY <- vapply(optitype_mhc_table$Allele, to_igv_key, character(1))
+      
+      m <- match(optitype_mhc_table$IGV_KEY, qc$HLA)
+      optitype_mhc_table$Coverage  <- qc$Coverage[m]
+      optitype_mhc_table$MeanDepth <- qc$MeanDepth[m]
+      
+      #----------------------------------------------------------
+      # modify coverage (use raw numeric, then format for display)
+      optitype_mhc_table$Coverage_raw  <- suppressWarnings(as.numeric(optitype_mhc_table$Coverage))
+      optitype_mhc_table$MeanDepth_raw <- suppressWarnings(as.numeric(optitype_mhc_table$MeanDepth))
+      
+      optitype_mhc_table$Coverage <- ifelse(
+        is.na(optitype_mhc_table$Coverage_raw),
+        "NA",
+        sprintf("%.2f%%", optitype_mhc_table$Coverage_raw * 100)
+      )
+      
+      optitype_mhc_table$MeanDepth <- ifelse(
+        is.na(optitype_mhc_table$MeanDepth_raw),
+        "NA",
+        sprintf("%.2f", optitype_mhc_table$MeanDepth_raw)
+      )
+      
+      optitype_mhc_table$Coverage_color <- ifelse(
+        is.na(optitype_mhc_table$Coverage_raw), "na",
+        ifelse(optitype_mhc_table$Coverage_raw >= 0.8, "good",
+               ifelse(optitype_mhc_table$Coverage_raw >= 0.5, "mid", "bad"))
+      )
+      
+
+      if ("nucleotide" %in% colnames(optitype_mhc_table)) {
+        colnames(optitype_mhc_table)[colnames(optitype_mhc_table)=="nucleotide"] <- "Nucleotide"
+      }
+      if ("protein" %in% colnames(optitype_mhc_table)) {
+        colnames(optitype_mhc_table)[colnames(optitype_mhc_table)=="protein"] <- "Protein"
+      }
+      
+      optitype_mhc_table <- optitype_mhc_table[, c(
+        "Allele",
+        "Coverage",
+        "MeanDepth",
+        "Nucleotide",
+        "Protein",
+        "Coverage_color"
+      )]
+      #----------------------------------------------------------
+      output$hla_typing_table <- renderDataTable({
+        datatable(
+          optitype_mhc_table,
+          rownames = FALSE,
+          selection = "none",
+          class = "nowrap",
+          options = list(
+            pageLength = 8,
+            autoWidth = TRUE,
+            scrollX = TRUE,
+            columnDefs = list(
+              list(targets = which(colnames(optitype_mhc_table)=="Coverage_color") - 1, visible = FALSE),
+              
+              list(
+                targets = which(colnames(optitype_mhc_table)=="Coverage") - 1,
+                render = JS(
+                  "function(data, type, row, meta) {",
+                  "  if(type !== 'display') return data;",
+                  "  var color = row[row.length - 1];",
+                  "  var cls = '';",
+                  "  if(color === 'good') cls='color:#1b7f3a;';",
+                  "  else if(color === 'mid') cls='color:#b8860b;';",
+                  "  else if(color === 'bad') cls='color:#b22222;';",
+                  "  else cls='color:#666;';",
+                  "  return '<span style=\"' + cls + '\">' + data + '</span>';",
+                  "}"
+                )
+              ),
+              
+              list(
+                width = "100px",
+                targets = "_all",
+                render = JS(
+                  "function(data, type, row, meta) {",
+                  "return type === 'display' && data != null && data.length > 30 ?",
+                  "'<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>' : data;",
+                  "}"
+                )
+              )
+            )
+          )
+        )
+      })
+      #----------------------------------------------------------
+      # if (file.exists(qc_tsv)) file.remove(qc_tsv)
+      # if (file.exists(igv_contigs)) file.remove(igv_contigs)
+      #----------------------------------------------------------
+      # output$hla_typing_table <- renderDataTable({
+      #   datatable(optitype_mhc_table,
+      #             filter = "top",
+      #             rownames = FALSE,
+      #             selection = "none",
+      #             class = "nowrap",
+      #             options = list(
+      #               pageLength = 8,
+      #               autoWidth = TRUE,
+      #               scrollX = TRUE,
+      #               columnDefs = list(list(
+      #                 width = "100px",
+      #                 targets = "_all",
+      #                 render = JS(
+      #                   "function(data, type, row, meta) {",
+      #                   "return type === 'display' && data != null && data.length > 40 ?",
+      #                   "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
+      #                   "}"
+      #                 )
+      #               ))
+      #             )
+      #   )
+      # })
       #----------------------------------------------------------
       zip_folder_pathway <- file.path(WORK_ROOT, "Download", paste0("optitype_", input$sequence, "_", input$imgthla, "_zip"))
       dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
