@@ -118,8 +118,6 @@ observeEvent(
     active_dir <- get_active_igv_dir(current_tool)
     
     if (current_tool == "OptiType") {
-      ## fasta_path_o <- file.path(active_dir, "optitype_hla_reference_igv.fasta")
-      ## fastaindex_path_o <- file.path(active_dir, "optitype_hla_reference_igv.fasta.fai")
       fasta_path_o <- file.path(active_dir, "optitype.igv.fasta")
       fastaindex_path_o <- file.path(active_dir, "optitype.igv.fasta.fai")
       
@@ -139,10 +137,19 @@ observeEvent(
       shinyalert("Success", "OptiType reference uploaded successfully.", type = "success")
     } else if (current_tool == "HLA-HD") {
       # HLA-HD I & II
-      fasta_path_h_i <- file.path(active_dir, "hlahd_hla_reference_I_igv.fasta")
-      fastaindex_path_h_i <- file.path(active_dir, "hlahd_hla_reference_I_igv.fasta.fai")
-      fasta_path_h_ii <- file.path(active_dir, "hlahd_hla_reference_II_igv.fasta")
-      fastaindex_path_h_ii <- file.path(active_dir, "hlahd_hla_reference_II_igv.fasta.fai")
+      # fasta_path_h_i <- file.path(active_dir, "hlahd_hla_reference_I_igv.fasta")
+      # fastaindex_path_h_i <- file.path(active_dir, "hlahd_hla_reference_I_igv.fasta.fai")
+      # fasta_path_h_ii <- file.path(active_dir, "hlahd_hla_reference_II_igv.fasta")
+      # fastaindex_path_h_ii <- file.path(active_dir, "hlahd_hla_reference_II_igv.fasta.fai")
+      active_dir <- get_active_igv_dir("HLA-HD")
+      
+      # allele-centric references (NEW)
+      fasta_path_h_i      <- file.path(active_dir, "hlahd.igv.classI.fasta")
+      fastaindex_path_h_i <- paste0(fasta_path_h_i, ".fai")
+      
+      fasta_path_h_ii      <- file.path(active_dir, "hlahd.igv.classII.fasta")
+      fastaindex_path_h_ii <- paste0(fasta_path_h_ii, ".fai")      
+      
       
       if (!file.exists(fasta_path_h_i)) {
         shinyalert("Error", "Required FASTA file is missing for HLA-HD.", type = "error")
@@ -151,11 +158,11 @@ observeEvent(
       }
       
       options_values$hlahd_igv_i_options <- parseAndValidateGenomeSpec(
-        genomeName = "hlahd", initialLocus = "All", stockGenome = FALSE, dataMode = "localFiles",
+        genomeName = "hlahd_allele_I", initialLocus = "All", stockGenome = FALSE, dataMode = "localFiles",
         fasta = fasta_path_h_i, fastaIndex = fastaindex_path_h_i
       )
       options_values$hlahd_igv_ii_options <- parseAndValidateGenomeSpec(
-        genomeName = "hlahd", initialLocus = "All", stockGenome = FALSE, dataMode = "localFiles",
+        genomeName = "hlahd_allele_II", initialLocus = "All", stockGenome = FALSE, dataMode = "localFiles",
         fasta = fasta_path_h_ii, fastaIndex = fastaindex_path_h_ii
       )
       output$alignment_igv <- renderIgvShiny({
@@ -213,8 +220,11 @@ load_and_show_region_optitype <- function(igv_id) {
 
 ### HLA-HD
 load_and_show_region_hlahd_I <- function(igv_id) {
+  # active_dir <- get_active_igv_dir("HLA-HD")
+  # bam_file <- file.path(active_dir, "sample.modified.bam")
   active_dir <- get_active_igv_dir("HLA-HD")
-  bam_file <- file.path(active_dir, "sample.modified.bam")
+  bam_file <- file.path(active_dir, "allelecentric.CR.bam")
+
   if (file.exists(bam_file)) {
     x <- readGAlignments(bam_file, param = Rsamtools::ScanBamParam(what = "seq"))
     loadBamTrackFromLocalData(session, id = igv_id, trackName = "HLA-HD Class I", data = x)
@@ -223,8 +233,11 @@ load_and_show_region_hlahd_I <- function(igv_id) {
 }
 
 load_and_show_region_hlahd_II <- function(igv_id) {
+  # active_dir <- get_active_igv_dir("HLA-HD")
+  # bam_file <- file.path(active_dir, "sample.modified.bam")
   active_dir <- get_active_igv_dir("HLA-HD")
-  bam_file <- file.path(active_dir, "sample.modified.bam")
+  bam_file <- file.path(active_dir, "allelecentric.CR.bam")
+  
   if (file.exists(bam_file)) {
     x <- readGAlignments(bam_file, param = Rsamtools::ScanBamParam(what = "seq"))
     loadBamTrackFromLocalData(session, id = igv_id, trackName = "HLA-HD Class II", data = x)

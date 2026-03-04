@@ -723,32 +723,8 @@ observeEvent(input$hla_typing_button, {
         )
       })
       #----------------------------------------------------------
-      # if (file.exists(qc_tsv)) file.remove(qc_tsv)
-      # if (file.exists(igv_contigs)) file.remove(igv_contigs)
-      #----------------------------------------------------------
-      # output$hla_typing_table <- renderDataTable({
-      #   datatable(optitype_mhc_table,
-      #             filter = "top",
-      #             rownames = FALSE,
-      #             selection = "none",
-      #             class = "nowrap",
-      #             options = list(
-      #               pageLength = 8,
-      #               autoWidth = TRUE,
-      #               scrollX = TRUE,
-      #               columnDefs = list(list(
-      #                 width = "100px",
-      #                 targets = "_all",
-      #                 render = JS(
-      #                   "function(data, type, row, meta) {",
-      #                   "return type === 'display' && data != null && data.length > 40 ?",
-      #                   "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
-      #                   "}"
-      #                 )
-      #               ))
-      #             )
-      #   )
-      # })
+      if (file.exists(qc_tsv)) file.remove(qc_tsv)
+      if (file.exists(igv_contigs)) file.remove(igv_contigs)
       #----------------------------------------------------------
       zip_folder_pathway <- file.path(WORK_ROOT, "Download", paste0("optitype_", input$sequence, "_", input$imgthla, "_zip"))
       dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
@@ -1124,12 +1100,12 @@ observeEvent(input$hla_typing_button, {
     system("grep -v '^@' ./IGV/hlahd/sample.all.merged.sam > ./IGV/hlahd/body.sam")
     system("cat ./IGV/hlahd/header.sam ./IGV/hlahd/body.sam > ./IGV/hlahd/sample.all.corrected.merged.sam")
     
-    # Keep only the first occurrence of each sequence name and remove duplicates
+    # Keep only the first occurrence of each sequence name
     system("awk '!seen[$0]++' ./IGV/hlahd/sample.all.corrected.merged.sam > ./IGV/hlahd/sample.all.rmdup.sam")
     
     # Convert the merged SAM file to BAM format
     system("samtools view -Sb ./IGV/hlahd/sample.all.rmdup.sam > ./IGV/hlahd/sample.all.rmdup.bam")
-    
+
     # Sort the merged BAM file
     system("samtools sort -o ./IGV/hlahd/sample.all.sorted.bam ./IGV/hlahd/sample.all.rmdup.bam")
     
@@ -1144,7 +1120,7 @@ observeEvent(input$hla_typing_button, {
     # Extract exon names matched with the reference from the mapping results as a list
     system("samtools view ./IGV/hlahd/sample.all.sorted.bam | cut -f 3 | grep -E '^[ABC]:Exon' > ./IGV/hlahd/hlahd_mhc_i_list.txt")
     system("samtools view ./IGV/hlahd/sample.all.sorted.bam | cut -f 3 | grep -E '^D(PA|PB|QA|QB|RB)1:Exon' > ./IGV/hlahd/hlahd_mhc_ii_list.txt")
-    
+
     # Create hla_reference.fasta for sample.all.sorted.bam
     input_list_I <- file.path(getwd(), "IGV/hlahd/hlahd_mhc_i_list.txt")
     input_list_II <- file.path(getwd(), "IGV/hlahd/hlahd_mhc_ii_list.txt")
@@ -1433,6 +1409,456 @@ observeEvent(input$hla_typing_button, {
       }
       output_file <- paste("./Output/hlahd_", input$sequence, "_", input$imgthla, ".txt", sep = "")
       write(sequence_file, file = output_file)
+      #----------------------------------------------------------
+      # Step0 (HLA-HD exon-level demo BAM + FASTQ for bowtie2 remap)
+      igv_dir <- "./IGV/hlahd"
+      dir.create(igv_dir, recursive = TRUE, showWarnings = FALSE)
+      
+      r1_sam <- "./Output/hlahd/sample/mapfile/sample.all.R1.pmap.NM.sam"
+      r2_sam <- "./Output/hlahd/sample/mapfile/sample.all.R2.pmap.NM.sam"
+      
+      merged_sam <- file.path(igv_dir, "sample.all.singleheader.merged.sam")
+      all_sorted_bam <- file.path(igv_dir, "sample.all.sorted.bam")
+      
+      mod_sam <- file.path(igv_dir, "sample.modified.sam")
+      mod_bam <- file.path(igv_dir, "sample.modified.bam")
+      
+      uniq1_bam <- file.path(igv_dir, "sample.uniq1.bam")
+      reads_fq_gz <- file.path(igv_dir, "all.fq.gz")
+      
+      # (0) sanity
+      if (!file.exists(r1_sam) || file.size(r1_sam) == 0) stop("[Step0] Missing R1 sam: ", r1_sam)
+      if (!file.exists(r2_sam) || file.size(r2_sam) == 0) stop("[Step0] Missing R2 sam: ", r2_sam)
+      
+      # (1) single-header merge (header from R1 only; body from R1+R2)
+      cmd_merge <- paste0(
+        "(grep '^@' ", shQuote(r1_sam), " ; ",
+        "grep -v '^@' ", shQuote(r1_sam), " ; ",
+        "grep -v '^@' ", shQuote(r2_sam), ") > ",
+        shQuote(merged_sam)
+      )
+      system(cmd_merge)
+      
+      if (!file.exists(merged_sam) || file.size(merged_sam) == 0) {
+        stop("[Step0] single-header merged sam not generated: ", merged_sam)
+      }
+      
+      # (2) merged SAM -> sorted BAM (demo exon-level) + index
+      cmd_all_bam <- paste0(
+        "samtools view -bS ", shQuote(merged_sam), " | ",
+        "samtools sort -o ", shQuote(all_sorted_bam), " -"
+      )
+      system(cmd_all_bam)
+      system(paste("samtools index", shQuote(all_sorted_bam)))
+      
+      if (!file.exists(all_sorted_bam) || file.size(all_sorted_bam) == 0) {
+        stop("[Step0] sample.all.sorted.bam not generated: ", all_sorted_bam)
+      }
+      
+      # (3) modify contig names :Exon -> _Exon (keep your original sed logic)
+      cmd_mod <- paste0(
+        "samtools view -h ", shQuote(all_sorted_bam), " | ",
+        "sed \"s/A:Exon/A_Exon/g; s/B:Exon/B_Exon/g; s/C:Exon/C_Exon/g; ",
+        "s/DPA1:Exon/DPA1_Exon/g; s/DPB1:Exon/DPB1_Exon/g; ",
+        "s/DQA1:Exon/DQA1_Exon/g; s/DQB1:Exon/DQB1_Exon/g; ",
+        "s/DRB1:Exon/DRB1_Exon/g\" > ",
+        shQuote(mod_sam)
+      )
+      system(cmd_mod)
+      
+      system(paste("samtools view -bS", shQuote(mod_sam), "-o", shQuote(mod_bam)))
+      system(paste("samtools index", shQuote(mod_bam)))
+      
+      if (!file.exists(mod_bam) || file.size(mod_bam) == 0) {
+        stop("[Step0] sample.modified.bam not generated: ", mod_bam)
+      }
+      
+      # (4) uniq1 (mapped only + first record per QNAME) -> BAM + index
+      cmd_uniq1 <- paste0(
+        "samtools view -h -F 4 ", shQuote(mod_bam), " | ",
+        "awk 'BEGIN{FS=OFS=\"\\t\"} /^@/ {print; next} !seen[$1]++ {print}' | ",
+        "samtools view -b -o ", shQuote(uniq1_bam), " -"
+      )
+      system(cmd_uniq1)
+      system(paste("samtools index", shQuote(uniq1_bam)))
+      
+      if (!file.exists(uniq1_bam) || file.size(uniq1_bam) == 0) {
+        stop("[Step0] sample.uniq1.bam not generated: ", uniq1_bam)
+      }
+      
+      # (5) uniq1 -> single-end FASTQ.gz for bowtie2 (-U)
+      cmd_fastq <- paste0(
+        "samtools fastq -n ", shQuote(uniq1_bam),
+        " | gzip -c > ", shQuote(reads_fq_gz)
+      )
+      system(cmd_fastq)
+      
+      if (!file.exists(reads_fq_gz) || file.size(reads_fq_gz) == 0) {
+        stop("[Step0] all.fq.gz not generated: ", reads_fq_gz)
+      } else {
+        message("[Step0] reads FASTQ ready: ", reads_fq_gz)
+      }
+      #----------------------------------------------------------
+      # Step1 (HLA-HD IGV prep): typed_alleles.txt + nucleotide.raw.fasta
+      # Paths (Shiny paths)
+      hlahd_txt   <- paste0("./Output/hlahd_", input$sequence, "_", input$imgthla, ".txt")
+      
+      igv_dir     <- "./IGV/hlahd"
+      alleles_txt <- file.path(igv_dir, "typed_alleles.txt")
+      nuc_raw_fa  <- file.path(igv_dir, "hlahd.nucleotide.raw.fasta")
+      
+      rename_map  <- file.path(igv_dir, "hlahd.rename_map.tsv")
+      fa_all      <- file.path(igv_dir, "hlahd.igv.all.fasta")
+      fa_i        <- file.path(igv_dir, "hlahd.igv.classI.fasta")
+      fa_ii       <- file.path(igv_dir, "hlahd.igv.classII.fasta")
+      
+      # [Step0 outputs sanity check] - Step0 should already generate these
+      step0_mod_bam  <- file.path(igv_dir, "sample.modified.bam")
+      step0_reads_fq <- file.path(igv_dir, "all.fq.gz")
+      
+      if (!file.exists(step0_mod_bam) || file.size(step0_mod_bam) == 0) {
+        message("[Info] Step0 demo BAM not found yet: ", step0_mod_bam,
+                " (OK if you haven't run Step0, but Step2 will need reads FASTQ.)")
+      }
+      if (!file.exists(step0_reads_fq) || file.size(step0_reads_fq) == 0) {
+        message("[Warning] Step0 reads FASTQ missing: ", step0_reads_fq,
+                " (Step2 bowtie2 will FAIL without this.)")
+      }
+      
+      # Safety: ensure IGV folder exists
+      dir.create(igv_dir, recursive = TRUE, showWarnings = FALSE)
+      
+      if (!file.exists(hlahd_txt) || file.size(hlahd_txt) == 0) {
+        message("[Warning] HLA-HD output txt missing or empty: ", hlahd_txt)
+      } else {
+        
+        # 1) typed_alleles.txt (unique allele list)
+        cmd_alleles <- paste(
+          "grep '^>'", shQuote(hlahd_txt),
+          "| sed 's/^>//'",
+          "| sed 's/_nucleotide$//'",
+          "| sed 's/_protein$//'",
+          "| sort -u >", shQuote(alleles_txt)
+        )
+        system(cmd_alleles)
+        
+        # 2) nucleotide-only FASTA (raw, headers are original: A*01:01:01 etc.)
+        #    keep only _nucleotide records and strip suffix
+        cmd_nuc <- paste(
+          "awk '",
+          "BEGIN{keep=0}",
+          "(/^>/){",
+          "  keep = ($0 ~ /_nucleotide$/);",
+          "  if(keep){ h=$0; sub(/_nucleotide$/,\"\",h); print h }",
+          "  next",
+          "}",
+          "{ if(keep) print }",
+          "'",
+          shQuote(hlahd_txt),
+          ">",
+          shQuote(nuc_raw_fa)
+        )
+        system(cmd_nuc)
+        
+        # 3) rename map: old allele -> IGV contig (HLA- + ':' -> '-')
+        cmd_map <- paste(
+          "awk 'BEGIN{FS=OFS=\"\\t\"}",
+          "/^>/{old=substr($0,2); new=\"HLA-\" old; gsub(/:/,\"-\",new); print old, new}'",
+          shQuote(nuc_raw_fa),
+          ">",
+          shQuote(rename_map)
+        )
+        system(cmd_map)
+        
+        # 4) build IGV FASTA (ALL) with renamed headers
+        cmd_fa_all <- paste0(
+          "awk -v MAP=", shQuote(rename_map),
+          " 'BEGIN{FS=OFS=\"\\t\"; while((getline < MAP)>0){m[$1]=$2} close(MAP); keep=0}",
+          " /^>/{old=substr($0,2); if(old in m){print \">\" m[old]; keep=1}else{keep=0}; next}",
+          " {if(keep) print}' ",
+          shQuote(nuc_raw_fa),
+          " > ",
+          shQuote(fa_all)
+        )
+        rc <- system(cmd_fa_all)
+        if (rc != 0) stop("[HLA-HD IGV Step1] awk rename->fasta failed")
+        
+        # 5) split Class I / Class II FASTA
+        cmd_fa_i <- paste(
+          "awk '",
+          "/^>/{name=substr($0,2); if(name ~ /^HLA-(A|B|C)\\*/) keep=1; else keep=0}",
+          "{if(keep) print}",
+          "'",
+          shQuote(fa_all),
+          ">",
+          shQuote(fa_i)
+        )
+        system(cmd_fa_i)
+        
+        cmd_fa_ii <- paste(
+          "awk '",
+          "/^>/{name=substr($0,2); if(name ~ /^HLA-(DPA1|DPB1|DQA1|DQB1|DRB1)\\*/) keep=1; else keep=0}",
+          "{if(keep) print}",
+          "'",
+          shQuote(fa_all),
+          ">",
+          shQuote(fa_ii)
+        )
+        system(cmd_fa_ii)
+        
+        # 6) faidx for IGV
+        if (file.exists(fa_all) && file.size(fa_all) > 0) system(paste("samtools faidx", shQuote(fa_all)))
+        if (file.exists(fa_i)   && file.size(fa_i)   > 0) system(paste("samtools faidx", shQuote(fa_i)))
+        if (file.exists(fa_ii)  && file.size(fa_ii)  > 0) system(paste("samtools faidx", shQuote(fa_ii)))
+        
+        # Optional quick sanity logs
+        if (file.exists(rename_map)) {
+          message("[Info] rename_map rows: ", length(readLines(rename_map)))
+        }
+        if (file.exists(fa_i)) {
+          message("[Info] Class I contigs: ", sum(grepl("^>", readLines(fa_i))))
+        }
+        if (file.exists(fa_ii)) {
+          message("[Info] Class II contigs: ", sum(grepl("^>", readLines(fa_ii))))
+        }
+      }
+      # [Hard checks before Step2]
+      if (!file.exists(fa_all) || file.size(fa_all) == 0) {
+        stop("[HLA-HD IGV Step1] Failed to build IGV FASTA: ", fa_all)
+      }
+      if (!file.exists(step0_reads_fq) || file.size(step0_reads_fq) == 0) {
+        stop("[HLA-HD IGV Step1] Missing reads FASTQ for Step2: ", step0_reads_fq,
+             " (Run Step0 to generate all.fq.gz)")
+      }
+      #----------------------------------------------------------
+      # Step2: bowtie2 align reads to allele-centric genome FASTA
+      igv_dir   <- "./IGV/hlahd"
+      igv_fasta <- file.path(igv_dir, "hlahd.igv.all.fasta")
+      reads_fq  <- file.path(igv_dir, "all.fq.gz")  # <-- if your Shiny pipeline stores reads elsewhere, change here
+      
+      idx_prefix <- file.path(igv_dir, "hlahd_WES_igv")
+      raw_bam    <- file.path(igv_dir, "allelecentric.raw.bam")
+      
+      # Safety: ensure dir exists
+      if (!dir.exists(igv_dir)) {
+        dir.create(igv_dir, recursive = TRUE, showWarnings = FALSE)
+      }
+      
+      # Basic checks
+      if (!file.exists(igv_fasta) || file.size(igv_fasta) == 0) {
+        stop("[HLA-HD IGV Step2] Missing IGV FASTA: ", igv_fasta)
+      }
+      if (!file.exists(reads_fq) || file.size(reads_fq) == 0) {
+        stop("[HLA-HD IGV Step2] Missing reads FASTQ: ", reads_fq,
+             " (You need to put/copy your all.fq.gz into ./IGV/hlahd/ before running Step2)")
+      }
+      
+      # Clean old bowtie2 index files (avoid mismatch with new FASTA)
+      old_idx <- Sys.glob(paste0(idx_prefix, ".*.bt2*"))
+      if (length(old_idx) > 0) file.remove(old_idx)
+      
+      # 2-1) Build bowtie2 index (ok to overwrite/rebuild)
+      build_cmd <- paste(
+        "bowtie2-build",
+        shQuote(igv_fasta),
+        shQuote(idx_prefix)
+      )
+      
+      rc_build <- system(build_cmd)
+      if (rc_build != 0) {
+        stop("[HLA-HD IGV Step2] bowtie2-build failed. cmd=", build_cmd)
+      }
+      
+      # 2-2) Align (keep all alignments with -a), sort to BAM
+      # Note: capture bowtie2 log into file to help debugging
+      bowtie2_log <- file.path(igv_dir, "bowtie2.step2.log")
+      bt2_threads <- min(as.integer(num_cores), 8)
+      align_cmd <- paste(
+        "bowtie2 --end-to-end --very-sensitive -a -p", bt2_threads,
+        "-x", shQuote(idx_prefix),
+        "-U", shQuote(reads_fq),
+        "2>", shQuote(bowtie2_log),
+        "| samtools sort -o", shQuote(raw_bam), "-"
+      )
+      
+      rc_align <- system(align_cmd)
+      if (rc_align != 0) {
+        stop("[HLA-HD IGV Step2] bowtie2 alignment failed. Check log: ", bowtie2_log)
+      }      
+      # 2-3) Index BAM
+      if (!file.exists(raw_bam) || file.size(raw_bam) == 0) {
+        stop("[HLA-HD IGV Step2] raw bam not produced/empty: ", raw_bam,
+             "\nCheck log: ", bowtie2_log)
+      }
+      rc_index <- system(paste("samtools index", shQuote(raw_bam)))
+      if (rc_index != 0 || !file.exists(paste0(raw_bam, ".bai"))) {
+        stop("[HLA-HD IGV Step2] samtools index failed: ", raw_bam)
+      }
+      
+      # 2-4) Ensure FASTA index exists (for IGV genome track usage)
+      if (!file.exists(paste0(igv_fasta, ".fai"))) {
+        system(paste("samtools faidx", shQuote(igv_fasta)))
+      }
+      
+      # Optional: quick sanity prints into Shiny log
+      if (file.exists(raw_bam)) {
+        message("[HLA-HD IGV Step2] raw bam created: ", raw_bam)
+        # mapped contigs >0 (first few)
+        idxstats_out <- tryCatch(system(paste("samtools idxstats", shQuote(raw_bam), "| awk '$3>0{print $1\"\\t\"$3}' | head"), intern = TRUE),
+                                 error = function(e) character(0))
+        if (length(idxstats_out) > 0) {
+          message("[HLA-HD IGV Step2] mapped contigs head:\n", paste(idxstats_out, collapse = "\n"))
+        }
+      } else {
+        stop("[HLA-HD IGV Step2] raw bam not produced: ", raw_bam,
+             "\nCheck log: ", bowtie2_log)
+      }
+      #----------------------------------------------------------
+      # Step3: Remove secondary + supplementary (keep primary only)
+      igv_dir <- "./IGV/hlahd"
+      raw_bam <- file.path(igv_dir, "allelecentric.raw.bam")
+      primary_bam <- file.path(igv_dir, "allelecentric.primaryOnly.bam")
+      
+      if (!file.exists(raw_bam) || file.size(raw_bam) == 0) {
+        stop("[HLA-HD IGV Step3] Missing raw bam: ", raw_bam)
+      }
+      
+      sort_threads <- min(as.integer(num_cores), 8)
+      cmd_step3 <- paste(
+        "samtools view -h -F 0x900", shQuote(raw_bam),
+        "| samtools sort -@", sort_threads, "-o", shQuote(primary_bam), "-"
+      )
+      
+      rc3 <- system(cmd_step3)
+      if (rc3 != 0) {
+        stop("[HLA-HD IGV Step3] samtools view/sort failed. cmd=", cmd_step3)
+      }
+      
+      rc3i <- system(paste("samtools index", shQuote(primary_bam)))
+      if (rc3i != 0 || !file.exists(paste0(primary_bam, ".bai"))) {
+        stop("[HLA-HD IGV Step3] samtools index failed: ", primary_bam)
+      }
+      
+      if (!file.exists(primary_bam) || file.size(primary_bam) == 0) {
+        stop("[HLA-HD IGV Step3] primaryOnly bam not produced: ", primary_bam)
+      } else {
+        message("[HLA-HD IGV Step3] primaryOnly bam created: ", primary_bam)
+      }
+      #----------------------------------------------------------
+      # Step4: Keep 1 best alignment per read (best NM, tie-breaker MAPQ)
+      primary_bam <- "./IGV/hlahd/allelecentric.primaryOnly.bam"
+      bestnm_bam  <- "./IGV/hlahd/allelecentric.bestNM.bam"
+      
+      if (file.exists(primary_bam) && file.size(primary_bam) > 0) {
+        
+        # awk logic:
+        # - pass headers
+        # - parse NM:i:<int> (if missing, treat as very large)
+        # - keep the best record per QNAME: smaller NM, then higher MAPQ
+        awk_prog <- paste(
+          "BEGIN{FS=OFS=\"\\t\"; cur=\"\"; best_line=\"\"; best_nm=999999; best_mapq=-1}",
+          "/^@/ {print; next}",
+          "{",
+          "  q=$1;",
+          "  nm=999999;",
+          "  for(i=12;i<=NF;i++){ if($i ~ /^NM:i:/){ nm=substr($i,6)+0; break } }",
+          "  mapq=$5+0;",
+          "  if(cur==\"\") { cur=q }",
+          "  if(q!=cur){",
+          "    if(best_line!=\"\") print best_line;",
+          "    cur=q; best_line=$0; best_nm=nm; best_mapq=mapq;",
+          "  } else {",
+          "    if(nm < best_nm || (nm==best_nm && mapq > best_mapq)){",
+          "      best_line=$0; best_nm=nm; best_mapq=mapq;",
+          "    }",
+          "  }",
+          "}",
+          "END{ if(best_line!=\"\") print best_line }",
+          sep="\n"
+        )
+        
+        sort_threads <- min(as.integer(num_cores), 8)
+        
+        cmd <- paste0(
+          "samtools sort -n -@", sort_threads, " -O SAM ", shQuote(primary_bam), " | ",
+          "awk ", shQuote(awk_prog), " | ",
+          "samtools view -b - | ",
+          "samtools sort -@", sort_threads, " -o ", shQuote(bestnm_bam), " -"
+        )
+        rc4 <- system(cmd)
+        if (rc4 != 0) stop("[HLA-HD IGV Step4] command failed: ", cmd)
+        
+        # index
+        if (file.exists(bestnm_bam) && file.size(bestnm_bam) > 0) {
+          rc4i <- system(paste("samtools index", shQuote(bestnm_bam)))
+          if (rc4i != 0 || !file.exists(paste0(bestnm_bam, ".bai"))) {
+            stop("[HLA-HD IGV Step4] samtools index failed: ", bestnm_bam)
+          }
+        } else {
+          warning("[HLA-HD IGV][Step4] allelecentric.bestNM.bam not generated or empty.")
+        }
+      } else {
+        warning("[HLA-HD IGV][Step4] primaryOnly BAM missing/empty: ", primary_bam)
+      }
+      #----------------------------------------------------------
+      # Step5: CR filter (NM/readlen <= 0.05) on bestNM BAM
+      bestnm_bam <- "./IGV/hlahd/allelecentric.bestNM.bam"
+      cr_bam     <- "./IGV/hlahd/allelecentric.CR.bam"
+      
+      if (file.exists(bestnm_bam) && file.size(bestnm_bam) > 0) {
+        
+        awk_prog <- paste(
+          "BEGIN{FS=OFS=\"\\t\"}",
+          "/^@/ {print; next}",
+          "{",
+          "  nm=999999;",
+          "  for(i=12;i<=NF;i++){ if($i ~ /^NM:i:/){ nm=substr($i,6); break } }",
+          "  readlen=length($10);",
+          "  if(readlen>0 && (nm/readlen) <= 0.05) print;",
+          "}",
+          sep = "\n"
+        )
+        
+        
+        sort_threads <- min(as.integer(num_cores), 8)
+        
+        cmd <- paste0(
+          "samtools view -h ", shQuote(bestnm_bam), " | ",
+          "awk ", shQuote(awk_prog), " | ",
+          "samtools view -b - | ",
+          "samtools sort -@", sort_threads, " -o ", shQuote(cr_bam), " -"
+        )
+        
+        rc5 <- system(cmd)
+        if (rc5 != 0) stop("[HLA-HD IGV Step5] command failed: ", cmd)
+        
+        if (file.exists(cr_bam) && file.size(cr_bam) > 0) {
+          rc5i <- system(paste("samtools index", shQuote(cr_bam)))
+          if (rc5i != 0 || !file.exists(paste0(cr_bam, ".bai"))) {
+            stop("[HLA-HD IGV Step5] samtools index failed: ", cr_bam)
+          }
+          message("[HLA-HD IGV][Step5] CR BAM generated: ", cr_bam)
+        } else {
+          warning("[HLA-HD IGV][Step5] allelecentric.CR.bam not generated or empty.")
+        }
+        
+      } else {
+        warning("[HLA-HD IGV][Step5] bestNM BAM missing/empty: ", bestnm_bam)
+      }
+      #----------------------------------------------------------
+      #----------------------------------------------------------
+      #----------------------------------------------------------
+      #----------------------------------------------------------
+      #----------------------------------------------------------
+      #----------------------------------------------------------
+      #----------------------------------------------------------
+      #----------------------------------------------------------
+      #----------------------------------------------------------
+      #----------------------------------------------------------
+      #----------------------------------------------------------
+      
+      
+      
       #----------------------------------------------------------
       zip_folder_pathway <- file.path(WORK_ROOT, "Download", paste0("hlahd_", input$sequence, "_", input$imgthla, "_zip"))
       dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
