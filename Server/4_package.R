@@ -680,8 +680,34 @@ observeEvent(input$hla_typing_button, {
       )]
       #----------------------------------------------------------
       output$hla_typing_table <- renderDataTable({
-        datatable(
-          optitype_mhc_table,
+        df <- optitype_mhc_table   # <<<< 這行換成：hlahd_mhc_table 或 t1k_mhc_table
+        
+        # ---------- hardening: reload 後也能上色 ----------
+        # 1) Coverage_raw 必須存在；如果 reload 回來只有 "70.86%"，這裡補回 raw
+        if (!("Coverage_raw" %in% colnames(df))) {
+          if ("Coverage" %in% colnames(df)) {
+            df$Coverage_raw <- suppressWarnings(as.numeric(sub("%", "", df$Coverage, fixed = TRUE)) / 100)
+          } else {
+            df$Coverage_raw <- NA_real_
+          }
+        }
+        
+        # 2) Coverage_color 不再需要；就算存在也丟掉（避免你截圖那個欄跑出來）
+        if ("Coverage_color" %in% colnames(df)) {
+          df$Coverage_color <- NULL
+        }
+        
+        # 3) 確保顯示欄位順序（你想要的樣式）
+        want_cols <- c("Allele", "Coverage", "MeanDepth", "Nucleotide", "Protein", "Coverage_raw")
+        keep_cols <- want_cols[want_cols %in% colnames(df)]
+        df <- df[, keep_cols, drop = FALSE]
+        
+        # 4) 計算 Coverage_raw 的 column index（DataTables 0-based）
+        idx_cov_raw <- which(colnames(df) == "Coverage_raw") - 1
+        
+        dt <- datatable(
+          df,
+          filter = "top",
           rownames = FALSE,
           selection = "none",
           class = "nowrap",
@@ -689,39 +715,85 @@ observeEvent(input$hla_typing_button, {
             pageLength = 8,
             autoWidth = TRUE,
             scrollX = TRUE,
-            columnDefs = list(
-              list(targets = which(colnames(optitype_mhc_table)=="Coverage_color") - 1, visible = FALSE),
-              
+            columnDefs = Filter(
+              Negate(is.null),
               list(
-                targets = which(colnames(optitype_mhc_table)=="Coverage") - 1,
-                render = JS(
-                  "function(data, type, row, meta) {",
-                  "  if(type !== 'display') return data;",
-                  "  var color = row[row.length - 1];",
-                  "  var cls = '';",
-                  "  if(color === 'good') cls='color:#1b7f3a;';",
-                  "  else if(color === 'mid') cls='color:#b8860b;';",
-                  "  else if(color === 'bad') cls='color:#b22222;';",
-                  "  else cls='color:#666;';",
-                  "  return '<span style=\"' + cls + '\">' + data + '</span>';",
-                  "}"
-                )
-              ),
-              
-              list(
-                width = "100px",
-                targets = "_all",
-                render = JS(
-                  "function(data, type, row, meta) {",
-                  "return type === 'display' && data != null && data.length > 30 ?",
-                  "'<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>' : data;",
-                  "}"
+                # hide Coverage_raw helper col
+                if (length(idx_cov_raw) == 1 && idx_cov_raw >= 0) {
+                  list(targets = idx_cov_raw, visible = FALSE)
+                } else NULL,
+                
+                # truncate all columns with tooltip
+                list(
+                  width = "100px",
+                  targets = "_all",
+                  render = JS(
+                    "function(data, type, row, meta) {",
+                    "  return type === 'display' && data != null && data.length > 30 ?",
+                    "    '<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>' : data;",
+                    "}"
+                  )
                 )
               )
             )
           )
         )
+        
+        # --------- Coverage 上色（不靠欄位位置）---------
+        dt %>%
+          formatStyle(
+            "Coverage",
+            valueColumns = "Coverage_raw",
+            color = styleInterval(
+              c(0.5, 0.8),  # <0.5 bad, 0.5-0.8 mid, >=0.8 good
+              c("#b22222", "#b8860b", "#1b7f3a")
+            )
+          )
       })
+      #----------------------------------------------------------
+      # output$hla_typing_table <- renderDataTable({
+      #   datatable(
+      #     optitype_mhc_table,
+      #     rownames = FALSE,
+      #     selection = "none",
+      #     class = "nowrap",
+      #     options = list(
+      #       pageLength = 8,
+      #       autoWidth = TRUE,
+      #       scrollX = TRUE,
+      #       columnDefs = list(
+      #         list(targets = which(colnames(optitype_mhc_table)=="Coverage_color") - 1, visible = FALSE),
+      #         
+      #         list(
+      #           targets = which(colnames(optitype_mhc_table)=="Coverage") - 1,
+      #           render = JS(
+      #             "function(data, type, row, meta) {",
+      #             "  if(type !== 'display') return data;",
+      #             "  var color = row[row.length - 1];",
+      #             "  var cls = '';",
+      #             "  if(color === 'good') cls='color:#1b7f3a;';",
+      #             "  else if(color === 'mid') cls='color:#b8860b;';",
+      #             "  else if(color === 'bad') cls='color:#b22222;';",
+      #             "  else cls='color:#666;';",
+      #             "  return '<span style=\"' + cls + '\">' + data + '</span>';",
+      #             "}"
+      #           )
+      #         ),
+      #         
+      #         list(
+      #           width = "100px",
+      #           targets = "_all",
+      #           render = JS(
+      #             "function(data, type, row, meta) {",
+      #             "return type === 'display' && data != null && data.length > 30 ?",
+      #             "'<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>' : data;",
+      #             "}"
+      #           )
+      #         )
+      #       )
+      #     )
+      #   )
+      # })
       #----------------------------------------------------------
       if (file.exists(qc_tsv)) file.remove(qc_tsv)
       if (file.exists(igv_contigs)) file.remove(igv_contigs)
@@ -2452,7 +2524,7 @@ observeEvent(input$hla_typing_button, {
     
     rep_contigs <- character(0)
     
-    # Step5: pick representative contig per prefix (max mapped reads)
+    # Step5a: pick representative contig per prefix (max mapped reads)
     for (p in prefixes) {
       cfile <- file.path(GROUP_DIR, paste0(p, ".contigs.txt"))
       if (!file.exists(cfile) || file.size(cfile) == 0) next
@@ -2481,6 +2553,33 @@ observeEvent(input$hla_typing_button, {
     
     message("[T1K IGV FIX] rep_contigs.list generated n=", length(rep_contigs),
             "\n  -> ", REP_LIST)
+    
+    # Step5b: write rep/rep_summary.tsv (required by QC)
+    REP_SUMMARY <- file.path(REP_DIR, "rep_summary.tsv")
+    
+    lines <- c("prefix\trep_contig\tmapped_reads")
+    
+    for (p in prefixes) {
+      one <- file.path(REP_DIR, paste0(p, ".rep_contig.tsv"))
+      if (!file.exists(one) || file.size(one) == 0) next
+      
+      x <- readLines(one, warn = FALSE)
+      x <- x[nzchar(x)]
+      if (length(x) == 0) next
+      
+      parts <- strsplit(x[1], "\t", fixed = TRUE)[[1]]
+      if (length(parts) < 2) next
+      
+      best_ctg <- parts[1]
+      best_mapped <- parts[2]
+      lines <- c(lines, paste(p, best_ctg, best_mapped, sep = "\t"))
+    }
+    
+    writeLines(lines, REP_SUMMARY)
+    
+    if (!file.exists(REP_SUMMARY) || file.size(REP_SUMMARY) == 0) {
+      stop("[T1K IGV Step5] rep_summary.tsv not generated/empty: ", REP_SUMMARY)
+    }
     # ==========================================================
     # Step 6) build IGV BAM (only rep contigs) from clean BAM
     #   then rename contigs: '_' -> '-' (header + RNAME)
@@ -2604,36 +2703,281 @@ observeEvent(input$hla_typing_button, {
             "\n  BAM: ", IGV_BAM,
             "\n  Class I FASTA: ", IGV_FA_I,
             "\n  Class II FASTA: ", IGV_FA_II)
-    
-    # Optional: remove heavy intermediates NOW (we can refine cleanup list later)
-    # file.remove(IGV_BAM_PRE, paste0(IGV_BAM_PRE, ".bai"))
     #----------------------------------------------------------
+    #----------------------------------------------------------
+    # [T1K IGV Step6-QC] Coverage / MeanDepth + merge back to t1k_mhc_table
+    #   - QC computed on IGV_BAM_PRE (underscore contigs) using KEEP_CONTIGS
+    #   - Then rename QC contigs to dash using RENAME_MAP => qc_final (dash contigs)
+    #   - Merge path:
+    #       Allele (A*01:01:01) -> PREFIX_KEY (HLA-A*01_01_01)
+    #       PREFIX_KEY -> rep_summary(prefix -> rep_contig underscore)
+    #       rep_contig underscore -> rep_contig_new dash (rename_map)
+    #       rep_contig_new dash -> qc_final
+    #   - End: reorder columns in t1k_mhc_table (Coverage_color last hidden helper)
+    #----------------------------------------------------------
+    active_dir <- igv_dir
+    message("[T1K QC] active_dir=", active_dir)
     
+    IGV_BAM_PRE <- file.path(active_dir, "t1k.igv.preRename.bam")  # underscore contigs
+    KEEP_CONTIGS <- file.path(active_dir, "t1k.igv.contigs_used.txt")  # underscore contigs (17)
+    RENAME_MAP <- file.path(active_dir, "t1k.rename_map.tsv")  # old '_' -> new '-'
+    REP_SUMMARY <- file.path(active_dir, "rep", "rep_summary.tsv")  # prefix rep_contig mapped_reads
     
+    # QC outputs
+    QC_PRE   <- file.path(active_dir, "t1k.coverage_tmp.preRename.tsv")  # underscore
+    QC_FINAL <- file.path(active_dir, "t1k.coverage_tmp.tsv")            # dash
+    
+    #-----------------------
+    # Safety checks
+    #-----------------------
+    if (!file.exists(IGV_BAM_PRE) || file.size(IGV_BAM_PRE) == 0) stop("[T1K QC] Missing IGV_BAM_PRE: ", IGV_BAM_PRE)
+    if (!file.exists(KEEP_CONTIGS) || file.size(KEEP_CONTIGS) == 0) stop("[T1K QC] Missing KEEP_CONTIGS: ", KEEP_CONTIGS)
+    if (!file.exists(RENAME_MAP) || file.size(RENAME_MAP) == 0) stop("[T1K QC] Missing RENAME_MAP: ", RENAME_MAP)
+    if (!file.exists(REP_SUMMARY) || file.size(REP_SUMMARY) == 0) stop("[T1K QC] Missing rep_summary.tsv: ", REP_SUMMARY)
+    
+    #-----------------------
+    # 1) QC on preRename BAM (underscore contigs)
+    #-----------------------
+    cmd_qc1 <- paste(
+      "printf 'Contig\\tCoverage\\tMeanDepth\\n' >", shQuote(QC_PRE), "&&",
+      "while IFS= read -r ctg; do",
+      "  [ -z \"$ctg\" ] && continue;",
+      "  samtools depth -a -r \"$ctg\"", shQuote(IGV_BAM_PRE),
+      "  | awk -v C=\"$ctg\" '{sum+=$3; n++; if($3>0) cov++} END{",
+      "      if(n==0){printf \"%s\\tNA\\tNA\\n\", C}",
+      "      else{printf \"%s\\t%.6f\\t%.6f\\n\", C, cov/n, sum/n}",
+      "    }' >>", shQuote(QC_PRE), ";",
+      "done <", shQuote(KEEP_CONTIGS)
+    )
+    system(cmd_qc1)
+    
+    if (!file.exists(QC_PRE) || file.size(QC_PRE) == 0) stop("[T1K QC] QC_PRE not generated: ", QC_PRE)
+    
+    #-----------------------
+    # 2) rename QC contigs '_' -> '-' using RENAME_MAP => QC_FINAL
+    #-----------------------
+    cmd_qc2 <- paste0(
+      "awk -v MAP=", shQuote(RENAME_MAP), " 'BEGIN{FS=OFS=\"\\t\";",
+      "  while((getline<MAP)>0){split($0,a,\"\\t\"); m[a[1]]=a[2]} close(MAP)",
+      "}",
+      " NR==1{print; next}",
+      " {c=$1; if(c in m) $1=m[c]; print}' ",
+      shQuote(QC_PRE), " > ", shQuote(QC_FINAL)
+    )
+    system(cmd_qc2)
+    
+    if (!file.exists(QC_FINAL) || file.size(QC_FINAL) == 0) stop("[T1K QC] QC_FINAL not generated: ", QC_FINAL)
+    
+    qc <- read.table(QC_FINAL, sep = "\t", header = TRUE, stringsAsFactors = FALSE, check.names = FALSE)
+    qc <- qc[!duplicated(qc$Contig), , drop = FALSE]
+    
+    need_cols <- c("Contig", "Coverage", "MeanDepth")
+    if (!all(need_cols %in% colnames(qc))) stop("[T1K QC] QC header invalid: ", paste(colnames(qc), collapse = ","))
+    
+    #-----------------------
+    # 3) Build rep_map: prefix -> rep_contig underscore -> rep_contig_new dash
+    #-----------------------
+    rep_map <- read.table(REP_SUMMARY, sep = "\t", header = TRUE, stringsAsFactors = FALSE, check.names = FALSE, quote = "")
+    if (!all(c("prefix","rep_contig") %in% colnames(rep_map))) {
+      stop("[T1K QC] rep_summary.tsv missing columns. Got: ", paste(colnames(rep_map), collapse = ","))
+    }
+    
+    rm <- read.table(RENAME_MAP, sep = "\t", header = FALSE, stringsAsFactors = FALSE, check.names = FALSE, quote = "")
+    if (ncol(rm) < 2) stop("[T1K QC] rename_map invalid format: ", RENAME_MAP)
+    colnames(rm)[1:2] <- c("old","new")
+    
+    m_rm <- match(rep_map$rep_contig, rm$old)
+    rep_map$rep_contig_new <- rm$new[m_rm]
+    
+    #-----------------------
+    # 4) Merge back to t1k_mhc_table
+    #   - Allele: A*01:01:01 -> PREFIX_KEY: HLA-A*01_01_01
+    #-----------------------
+    to_prefix_underscore <- function(allele_no_hla) paste0("HLA-", gsub(":", "_", allele_no_hla, fixed = TRUE))
+    t1k_mhc_table$PREFIX_KEY <- vapply(t1k_mhc_table$Allele, to_prefix_underscore, character(1))
+    
+    m1 <- match(t1k_mhc_table$PREFIX_KEY, rep_map$prefix)
+    t1k_mhc_table$IGV_CONTIG <- rep_map$rep_contig_new[m1]  # dash contig name
+    
+    m2 <- match(t1k_mhc_table$IGV_CONTIG, qc$Contig)
+    t1k_mhc_table$Coverage  <- qc$Coverage[m2]
+    t1k_mhc_table$MeanDepth <- qc$MeanDepth[m2]
+    
+    #-----------------------
+    # 5) format + color class (same as HLA-HD/OptiType)
+    #-----------------------
+    t1k_mhc_table$Coverage_raw  <- suppressWarnings(as.numeric(t1k_mhc_table$Coverage))
+    t1k_mhc_table$MeanDepth_raw <- suppressWarnings(as.numeric(t1k_mhc_table$MeanDepth))
+    
+    t1k_mhc_table$Coverage <- ifelse(
+      is.na(t1k_mhc_table$Coverage_raw),
+      "NA",
+      sprintf("%.2f%%", t1k_mhc_table$Coverage_raw * 100)
+    )
+    t1k_mhc_table$MeanDepth <- ifelse(
+      is.na(t1k_mhc_table$MeanDepth_raw),
+      "NA",
+      sprintf("%.2f", t1k_mhc_table$MeanDepth_raw)
+    )
+    
+    t1k_mhc_table$Coverage_color <- ifelse(
+      is.na(t1k_mhc_table$Coverage_raw), "na",
+      ifelse(t1k_mhc_table$Coverage_raw >= 0.8, "good",
+             ifelse(t1k_mhc_table$Coverage_raw >= 0.5, "mid", "bad"))
+    )
+    
+    #-----------------------
+    # 6) normalize seq column names (match HLA-HD)
+    #-----------------------
+    if ("nucleotide" %in% colnames(t1k_mhc_table) && !("Nucleotide" %in% colnames(t1k_mhc_table))) {
+      colnames(t1k_mhc_table)[colnames(t1k_mhc_table) == "nucleotide"] <- "Nucleotide"
+    }
+    if ("protein" %in% colnames(t1k_mhc_table) && !("Protein" %in% colnames(t1k_mhc_table))) {
+      colnames(t1k_mhc_table)[colnames(t1k_mhc_table) == "protein"] <- "Protein"
+    }
+    
+    #-----------------------
+    # 7) FINAL: reorder columns (NO t1k_mhc_table_show)
+    #   Coverage_color must be last for JS row[row.length-1]
+    #-----------------------
+    show_cols <- c("Allele", "Coverage", "MeanDepth", "Nucleotide", "Protein", "Coverage_color")
+    show_cols <- show_cols[show_cols %in% colnames(t1k_mhc_table)]
+    show_cols <- c(setdiff(show_cols, "Coverage_color"), "Coverage_color")
+    t1k_mhc_table <- t1k_mhc_table[, show_cols, drop = FALSE]
     #----------------------------------------------------------
     output$hla_typing_table <- renderDataTable({
-      datatable(t1k_mhc_table,
-                filter = "top",
-                rownames = FALSE,
-                selection = "none",
-                class = "nowrap",
-                options = list(
-                  pageLength = 8,
-                  autoWidth = TRUE,
-                  scrollX = TRUE,
-                  columnDefs = list(list(
-                    width = "100px",
-                    targets = "_all",
-                    render = JS(
-                      "function(data, type, row, meta) {",
-                      "return type === 'display' && data != null && data.length > 40 ?",
-                      "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
-                      "}"
-                    )
-                  ))
-                )
+      datatable(
+        t1k_mhc_table,
+        filter = "top",
+        rownames = FALSE,
+        selection = "none",
+        class = "nowrap",
+        options = list(
+          pageLength = 8,
+          autoWidth = TRUE,
+          scrollX = TRUE,
+          columnDefs = list(
+            # hide Coverage_color helper column
+            list(
+              targets = (which(colnames(t1k_mhc_table) == "Coverage_color") - 1),
+              visible = FALSE
+            ),
+            
+            # Coverage colored by Coverage_color (last hidden col)
+            list(
+              targets = (which(colnames(t1k_mhc_table) == "Coverage") - 1),
+              render = JS(
+                "function(data, type, row, meta) {",
+                "  if(type !== 'display') return data;",
+                "  var color = row[row.length - 1];",
+                "  var cls = '';",
+                "  if(color === 'good') cls='color:#1b7f3a;';",
+                "  else if(color === 'mid') cls='color:#b8860b;';",
+                "  else if(color === 'bad') cls='color:#b22222;';",
+                "  else cls='color:#666;';",
+                "  return '<span style=\"' + cls + '\">' + data + '</span>';",
+                "}"
+              )
+            ),
+            
+            # truncate all columns with tooltip
+            list(
+              width = "100px",
+              targets = "_all",
+              render = JS(
+                "function(data, type, row, meta) {",
+                "  return type === 'display' && data != null && data.length > 30 ?",
+                "    '<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>' : data;",
+                "}"
+              )
+            )
+          )
+        )
       )
     })
+    #----------------------------------------------------------
+    #----------------------------------------------------------
+    # [T1K IGV Cleanup] remove intermediates
+    # Keep:
+    #   - mapping BAM
+    #   - IGV BAM
+    #   - reference FASTA
+    #----------------------------------------------------------
+    
+    active_dir <- igv_dir
+    message("[T1K Cleanup] active_dir=", active_dir)
+    
+    # ---------- files to KEEP ----------
+    keep_files <- c(
+      
+      # original mapping BAM
+      file.path(active_dir, "t1k_mapping.bam"),
+      file.path(active_dir, "t1k_mapping.bam.bai"),
+      
+      # IGV final BAM
+      file.path(active_dir, "t1k.igv.bam"),
+      file.path(active_dir, "t1k.igv.bam.bai"),
+      
+      # original reference FASTA
+      file.path(active_dir, "hla_classI_ABC.fasta"),
+      file.path(active_dir, "hla_classI_ABC.fasta.fai"),
+      file.path(active_dir, "hla_classII_D.fasta"),
+      file.path(active_dir, "hla_classII_D.fasta.fai"),
+      
+      # IGV reference FASTA
+      file.path(active_dir, "t1k.igv.classI.fasta"),
+      file.path(active_dir, "t1k.igv.classI.fasta.fai"),
+      file.path(active_dir, "t1k.igv.classII.fasta"),
+      file.path(active_dir, "t1k.igv.classII.fasta.fai")
+    )
+    
+    # ---------- files to DELETE ----------
+    delete_files <- c(
+      
+      # cleaned BAM
+      file.path(active_dir, "t1k_clean.bam"),
+      file.path(active_dir, "t1k_clean.bam.bai"),
+      
+      # preRename BAM
+      file.path(active_dir, "t1k.igv.preRename.bam"),
+      file.path(active_dir, "t1k.igv.preRename.bam.bai"),
+      
+      # IGV temporary fasta
+      file.path(active_dir, "t1k.igv.all.fasta"),
+      
+      # QC temporary
+      file.path(active_dir, "t1k.coverage_tmp.preRename.tsv"),
+      file.path(active_dir, "t1k.coverage_tmp.tsv"),
+      
+      # intermediate metadata
+      file.path(active_dir, "typed_alleles.txt"),
+      file.path(active_dir, "allele_prefix.txt"),
+      file.path(active_dir, "contigs_in_bam.clean.txt"),
+      file.path(active_dir, "idxstats.clean.tsv"),
+      file.path(active_dir, "t1k.igv.contigs_used.txt"),
+      file.path(active_dir, "t1k.rename_map.tsv")
+    )
+    
+    # ---------- directories to DELETE ----------
+    delete_dirs <- c(
+      file.path(active_dir, "groups"),
+      file.path(active_dir, "rep")
+    )
+    
+    # ---------- delete files ----------
+    delete_files <- setdiff(delete_files, keep_files)
+    delete_files_exist <- delete_files[file.exists(delete_files)]
+    
+    if (length(delete_files_exist) > 0) {
+      file.remove(delete_files_exist)
+    }
+    
+    # ---------- delete directories ----------
+    for (d in delete_dirs) {
+      if (dir.exists(d)) unlink(d, recursive = TRUE, force = TRUE)
+    }
+    
+    message("[T1K Cleanup] completed")
     #----------------------------------------------------------
     zip_folder_pathway <- file.path(WORK_ROOT, paste0("Download/t1k_", input$sequence, "_", input$imgthla, "_zip"))
     dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
