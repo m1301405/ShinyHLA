@@ -168,10 +168,12 @@ observeEvent(
       })
       shinyalert("Success", "HLA-HD reference uploaded successfully.", type = "success")
     } else if (current_tool == "T1K") {
-      fasta_path_t_i <- file.path(active_dir, "hla_classI_ABC.fasta")
-      fastaindex_path_t_i <- file.path(active_dir, "hla_classI_ABC.fasta.fai")
-      fasta_path_t_ii <- file.path(active_dir, "hla_classII_D.fasta")
-      fastaindex_path_t_ii <- file.path(active_dir, "hla_classII_D.fasta.fai")
+      active_dir <- get_active_igv_dir("T1K")
+      
+      fasta_path_t_i <- file.path(active_dir, "t1k.igv.classI.fasta")
+      fastaindex_path_t_i <- file.path(active_dir, "t1k.igv.classI.fasta.fai")
+      fasta_path_t_ii <- file.path(active_dir, "t1k.igv.classII.fasta")
+      fastaindex_path_t_ii <- file.path(active_dir, "t1k.igv.classII.fasta.fai")
       
       if (!file.exists(fasta_path_t_i)) {
         shinyalert("Error", "Required FASTA file is missing for T1K.", type = "error")
@@ -204,7 +206,7 @@ observeEvent(
 ### OptiType
 load_and_show_region_optitype <- function(igv_id) {
   active_dir <- get_active_igv_dir("OptiType")
-  ## bam_file <- file.path(active_dir, "optitype_merge_filtered.bam")
+  
   bam_file <- file.path(active_dir, "optitype.igv.bam")
   if (file.exists(bam_file)) {
     x <- readGAlignments(bam_file, param = Rsamtools::ScanBamParam(what = "seq"))
@@ -215,8 +217,6 @@ load_and_show_region_optitype <- function(igv_id) {
 
 ### HLA-HD
 load_and_show_region_hlahd_I <- function(igv_id) {
-  # active_dir <- get_active_igv_dir("HLA-HD")
-  # bam_file <- file.path(active_dir, "sample.modified.bam")
   active_dir <- get_active_igv_dir("HLA-HD")
   bam_file <- file.path(active_dir, "allelecentric.CR.bam")
 
@@ -228,8 +228,6 @@ load_and_show_region_hlahd_I <- function(igv_id) {
 }
 
 load_and_show_region_hlahd_II <- function(igv_id) {
-  # active_dir <- get_active_igv_dir("HLA-HD")
-  # bam_file <- file.path(active_dir, "sample.modified.bam")
   active_dir <- get_active_igv_dir("HLA-HD")
   bam_file <- file.path(active_dir, "allelecentric.CR.bam")
   
@@ -243,7 +241,8 @@ load_and_show_region_hlahd_II <- function(igv_id) {
 ### T1K
 load_and_show_region_t1k_I <- function(igv_id) {
   active_dir <- get_active_igv_dir("T1K")
-  bam_file <- file.path(active_dir, "t1k_mapping.bam")
+  bam_file <- file.path(active_dir, "t1k.igv.bam")
+  
   if (file.exists(bam_file)) {
     x <- readGAlignments(bam_file, param = Rsamtools::ScanBamParam(what = "seq"))
     loadBamTrackFromLocalData(session, id = igv_id, trackName = "T1K Class I", data = x)
@@ -253,7 +252,8 @@ load_and_show_region_t1k_I <- function(igv_id) {
 
 load_and_show_region_t1k_II <- function(igv_id) {
   active_dir <- get_active_igv_dir("T1K")
-  bam_file <- file.path(active_dir, "t1k_mapping.bam")
+  bam_file <- file.path(active_dir, "t1k.igv.bam")
+  
   if (file.exists(bam_file)) {
     x <- readGAlignments(bam_file, param = Rsamtools::ScanBamParam(what = "seq"))
     loadBamTrackFromLocalData(session, id = igv_id, trackName = "T1K Class II", data = x)

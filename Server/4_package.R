@@ -2204,6 +2204,7 @@ observeEvent(input$hla_typing_button, {
     #----------------------------------------------------------
     t1k_mhc_table <- do.call(rbind, lapply(1:nrow(t1k_raw), function(i) extract_alleles(t1k_raw[i, ])))
     t1k_mhc_table <- subset(t1k_mhc_table, !(Allele %in% c("-", ".", "0")))
+    t1k_mhc_table$Allele <- sub("^HLA-", "", t1k_mhc_table$Allele)
     t1k_mhc_table <- t1k_mhc_table[order(t1k_mhc_table$Allele), , drop = FALSE]
     #----------------------------------------------------------
     #---------------nucleotide
@@ -2211,8 +2212,8 @@ observeEvent(input$hla_typing_button, {
     for (i in 1:nrow(t1k_mhc_table)) {
       seq <- t1k_mhc_table[i, 1]
       
-      gene_name <- sub("^HLA-([A-Z0-9]+)\\*.*", "\\1", seq)
-      allele_number <- sub("^HLA-[A-Z0-9]+\\*([0-9:]+)", "\\1", seq)
+      gene_name <- sub("^([A-Z0-9]+)\\*.*", "\\1", seq)
+      allele_number <- sub("^[A-Z0-9]+\\*([0-9:]+)", "\\1", seq)
       
       fasta_path <- file.path("/root/shiny/IMGTHLA", imgthla_version, "fasta", paste0(gene_name, "_nuc.fasta"))
       
@@ -2243,8 +2244,8 @@ observeEvent(input$hla_typing_button, {
     for (i in 1:nrow(t1k_mhc_table)) {
       seq <- t1k_mhc_table[i, 1]
       
-      gene_name <- sub("^HLA-([A-Z0-9]+)\\*.*", "\\1", seq)
-      allele_number <- sub("^HLA-[A-Z0-9]+\\*([0-9:]+)", "\\1", seq)
+      gene_name <- sub("^([A-Z0-9]+)\\*.*", "\\1", seq)
+      allele_number <- sub("^[A-Z0-9]+\\*([0-9:]+)", "\\1", seq)
       
       fasta_path <- file.path("/root/shiny/IMGTHLA", imgthla_version, "fasta", paste0(gene_name, "_prot.fasta"))
       
@@ -2272,6 +2273,344 @@ observeEvent(input$hla_typing_button, {
       }
     }
     #----------------------------------------------------------
+    sequence_file <- NULL
+    
+    for (i in 1:nrow(t1k_mhc_table)) {
+      seq <- t1k_mhc_table[i, "Allele"]
+      nuc <- t1k_mhc_table[i, "nucleotide"]
+      prot <- t1k_mhc_table[i, "protein"]
+      
+      short_seq <- sub("^HLA-", "", seq)
+      
+      nucleotide_header <- paste0(">", short_seq, "_nucleotide")
+      protein_header <- paste0(">", short_seq, "_protein")
+      
+      seqs <- rbind(c(nucleotide_header), c(nuc), c(protein_header), c(prot))
+      sequence_file <- rbind(sequence_file, seqs)
+    }
+    
+    output_file <- file.path(WORK_ROOT, "Output", paste0("t1k_", input$sequence, "_", input$imgthla, ".txt"))
+    write(sequence_file, file = output_file)
+    #----------------------------------------------------------
+    # ==========================================================
+    # T1K IGV upgrade (7 steps)  — to be placed AFTER output_file is written
+    # Goal: produce IGV+QC common files:
+    #   - IGV/t1k/t1k.igv.bam (+.bai)    [contig names use '-' not '_']
+    #   - IGV/t1k/t1k.igv.classI.fasta (+.fai)
+    #   - IGV/t1k/t1k.igv.classII.fasta (+.fai)
+    # ==========================================================
+    
+    igv_dir <- igv_out_dir
+    dir.create(igv_dir, recursive = TRUE, showWarnings = FALSE)
+    
+    # ---------- inputs already exist from your pipeline ----------
+    # BAM from BWA mapping
+    RAW_BAM <- file.path(igv_dir, "t1k_mapping.bam")
+    # FASTA split from /T1K/split_hla_fasta.sh
+    FA_I_RAW  <- file.path(igv_dir, "hla_classI_ABC.fasta")
+    FA_II_RAW <- file.path(igv_dir, "hla_classII_D.fasta")
+    
+    if (!file.exists(RAW_BAM) || file.size(RAW_BAM) == 0) stop("[T1K IGV] Missing RAW_BAM: ", RAW_BAM)
+    if (!file.exists(FA_I_RAW) || file.size(FA_I_RAW) == 0) stop("[T1K IGV] Missing Class I FASTA: ", FA_I_RAW)
+    if (!file.exists(FA_II_RAW) || file.size(FA_II_RAW) == 0) stop("[T1K IGV] Missing Class II FASTA: ", FA_II_RAW)
+    
+    # ---------- output targets ----------
+    TYPED_ALLELES <- file.path(igv_dir, "typed_alleles.txt")          # A*01:01:01 (no HLA-)
+    ALLELE_PREFIX <- file.path(igv_dir, "allele_prefix.txt")          # HLA-A*01_01_01 (prefix form)
+    CLEAN_BAM     <- file.path(igv_dir, "t1k_clean.bam")              # remove 0x900 + sort/index
+    IDX_CLEAN     <- file.path(igv_dir, "idxstats.clean.tsv")
+    
+    CONTIGS_HDR   <- file.path(igv_dir, "contigs_in_bam.clean.txt")
+    GROUP_DIR     <- file.path(igv_dir, "groups")
+    REP_DIR       <- file.path(igv_dir, "rep")
+    REP_LIST      <- file.path(REP_DIR, "rep_contigs.list")
+    
+    IGV_BAM_U     <- file.path(igv_dir, "t1k.igv.unsorted.bam")
+    IGV_BAM_PRE   <- file.path(igv_dir, "t1k.igv.preRename.bam")
+    IGV_BAM       <- file.path(igv_dir, "t1k.igv.bam")                # FINAL bam for IGV+QC
+    
+    KEEP_CONTIGS  <- file.path(igv_dir, "t1k.igv.contigs_used.txt")   # mapped contigs from final bam (should be 17)
+    RENAME_MAP    <- file.path(igv_dir, "t1k.rename_map.tsv")         # old(with _) -> new(with -)
+    
+    IGV_FA_ALL    <- file.path(igv_dir, "t1k.igv.all.fasta")
+    IGV_FA_I      <- file.path(igv_dir, "t1k.igv.classI.fasta")
+    IGV_FA_II     <- file.path(igv_dir, "t1k.igv.classII.fasta")
+    
+    # ==========================================================
+    # Step 1) typed_alleles.txt from output_file (the txt you just wrote)
+    #   output_file contains headers like: >A*01:01:01_nucleotide, >A*01:01:01_protein
+    # ==========================================================
+    cmd_step1 <- paste0(
+      "grep '^>' ", shQuote(output_file), " | ",
+      "sed 's/^>//' | ",
+      "sed 's/_nucleotide$//' | sed 's/_protein$//' | ",
+      "sed 's/^HLA-//' | ",
+      "sort -u > ", shQuote(TYPED_ALLELES)
+    )
+    system(cmd_step1)
+    
+    if (!file.exists(TYPED_ALLELES) || file.size(TYPED_ALLELES) == 0) {
+      stop("[T1K IGV Step1] typed_alleles.txt not generated: ", TYPED_ALLELES)
+    }
+    
+    # ==========================================================
+    # Step 2) allele_prefix.txt (HLA- + gene* + 3-field '_' style prefix)
+    #   A*01:01:01 -> HLA-A*01_01_01
+    # ==========================================================
+    cmd_step2 <- paste0(
+      "awk 'BEGIN{FS=OFS=\"\\t\"}{",
+      "a=$0; gsub(/^HLA-/,\"\",a); split(a,x,\"*\"); gene=x[1]; rest=x[2]; gsub(/:/,\"_\",rest);",
+      "print \"HLA-\" gene \"*\" rest",
+      "}' ",
+      shQuote(TYPED_ALLELES),
+      " > ", shQuote(ALLELE_PREFIX)
+    )
+    system(cmd_step2)
+    
+    if (!file.exists(ALLELE_PREFIX) || file.size(ALLELE_PREFIX) == 0) {
+      stop("[T1K IGV Step2] allele_prefix.txt not generated: ", ALLELE_PREFIX)
+    }
+    
+    # ==========================================================
+    # Step 3) clean BAM: remove secondary+supplementary (0x900), sort, index
+    # ==========================================================
+    tmp_clean_u <- file.path(igv_dir, "t1k_clean.unsorted.bam")
+    cmd_step3a <- paste("samtools view -bh -F 0x900", shQuote(RAW_BAM), "-o", shQuote(tmp_clean_u))
+    cmd_step3b <- paste("samtools sort -o", shQuote(CLEAN_BAM), shQuote(tmp_clean_u))
+    cmd_step3c <- paste("samtools index", shQuote(CLEAN_BAM))
+    system(cmd_step3a)
+    system(cmd_step3b)
+    system(cmd_step3c)
+    if (file.exists(tmp_clean_u)) file.remove(tmp_clean_u)
+    
+    if (!file.exists(CLEAN_BAM) || file.size(CLEAN_BAM) == 0) stop("[T1K IGV Step3] clean bam not generated: ", CLEAN_BAM)
+    
+    # idxstats for representative selection
+    system(paste("samtools idxstats", shQuote(CLEAN_BAM), ">", shQuote(IDX_CLEAN)))
+    if (!file.exists(IDX_CLEAN) || file.size(IDX_CLEAN) == 0) stop("[T1K IGV Step3] idxstats.clean.tsv missing: ", IDX_CLEAN)
+    
+    # ==========================================================
+    # Step 4) list contigs from clean BAM header, then group contigs by prefix
+    #   rule: contig == prefix OR starts with prefix_
+    # ==========================================================
+    cmd_step4a <- paste0(
+      "samtools view -H ", shQuote(CLEAN_BAM),
+      " | awk -F'\\t' '$1==\"@SQ\"{for(i=1;i<=NF;i++){if($i~/^SN:/){print substr($i,4); break}}}'",
+      " | sort -u > ", shQuote(CONTIGS_HDR)
+    )
+    system(cmd_step4a)
+    if (!file.exists(CONTIGS_HDR) || file.size(CONTIGS_HDR) == 0) stop("[T1K IGV Step4] contigs list missing: ", CONTIGS_HDR)
+    
+    if (dir.exists(GROUP_DIR)) unlink(GROUP_DIR, recursive = TRUE)
+    dir.create(GROUP_DIR, recursive = TRUE, showWarnings = FALSE)
+    
+    # ==========================================================
+    # [FIX] Step4 + Step5 in PURE R (no ${prefix}, no glob issues)
+    # ==========================================================
+    
+    # Make sure idxstats.clean.tsv exists (Step3 should have created it)
+    if (!file.exists(IDX_CLEAN) || file.size(IDX_CLEAN) == 0) {
+      stop("[T1K IGV FIX] Missing idxstats.clean.tsv: ", IDX_CLEAN)
+    }
+    
+    # Read contigs list from clean BAM header
+    if (!file.exists(CONTIGS_HDR) || file.size(CONTIGS_HDR) == 0) {
+      stop("[T1K IGV FIX] Missing contigs_in_bam.clean.txt: ", CONTIGS_HDR)
+    }
+    bam_contigs <- readLines(CONTIGS_HDR)
+    bam_contigs <- bam_contigs[nzchar(bam_contigs)]
+    
+    # Read allele prefixes (HLA-A*01_01_01 etc.)
+    if (!file.exists(ALLELE_PREFIX) || file.size(ALLELE_PREFIX) == 0) {
+      stop("[T1K IGV FIX] Missing allele_prefix.txt: ", ALLELE_PREFIX)
+    }
+    prefixes <- readLines(ALLELE_PREFIX)
+    prefixes <- prefixes[nzchar(prefixes)]
+    
+    # (Re)create groups folder
+    if (dir.exists(GROUP_DIR)) unlink(GROUP_DIR, recursive = TRUE)
+    dir.create(GROUP_DIR, recursive = TRUE, showWarnings = FALSE)
+    
+    # Step4: build groups/<prefix>.contigs.txt
+    for (p in prefixes) {
+      # rule: contig == prefix  OR contig starts with prefix_
+      hits <- bam_contigs[bam_contigs == p | startsWith(bam_contigs, paste0(p, "_"))]
+      writeLines(hits, file.path(GROUP_DIR, paste0(p, ".contigs.txt")))
+    }
+    
+    # Load idxstats into R (contig -> mapped reads)
+    # idxstats format: contig  length  mapped  unmapped
+    idx <- read.table(IDX_CLEAN, sep = "\t", stringsAsFactors = FALSE, quote = "", comment.char = "")
+    if (ncol(idx) < 3) stop("[T1K IGV FIX] idxstats.clean.tsv format unexpected: ", IDX_CLEAN)
+    colnames(idx)[1:3] <- c("contig", "length", "mapped")
+    idx$mapped <- suppressWarnings(as.numeric(idx$mapped))
+    idx_map <- setNames(idx$mapped, idx$contig)
+    
+    # (Re)create rep folder
+    if (dir.exists(REP_DIR)) unlink(REP_DIR, recursive = TRUE)
+    dir.create(REP_DIR, recursive = TRUE, showWarnings = FALSE)
+    
+    rep_contigs <- character(0)
+    
+    # Step5: pick representative contig per prefix (max mapped reads)
+    for (p in prefixes) {
+      cfile <- file.path(GROUP_DIR, paste0(p, ".contigs.txt"))
+      if (!file.exists(cfile) || file.size(cfile) == 0) next
+      
+      ctgs <- readLines(cfile)
+      ctgs <- ctgs[nzchar(ctgs)]
+      if (length(ctgs) == 0) next
+      
+      mapped <- idx_map[ctgs]
+      mapped[is.na(mapped)] <- -1
+      
+      best <- ctgs[which.max(mapped)]
+      rep_contigs <- c(rep_contigs, best)
+      
+      # optional: write per-prefix record
+      out_one <- file.path(REP_DIR, paste0(p, ".rep_contig.tsv"))
+      writeLines(paste(best, idx_map[best], sep = "\t"), out_one)
+    }
+    
+    # write rep_contigs.list
+    if (length(rep_contigs) == 0) {
+      stop("[T1K IGV Step5] rep_contigs.list not generated/empty: ", REP_LIST,
+           "\n[Hint] Check: are groups/*.contigs.txt empty? Or idxstats.clean.tsv mapped column all 0?")
+    }
+    writeLines(rep_contigs, REP_LIST)
+    
+    message("[T1K IGV FIX] rep_contigs.list generated n=", length(rep_contigs),
+            "\n  -> ", REP_LIST)
+    # ==========================================================
+    # Step 6) build IGV BAM (only rep contigs) from clean BAM
+    #   then rename contigs: '_' -> '-' (header + RNAME)
+    # ==========================================================
+    # 6-1 subset
+    cmd_step6a <- paste0(
+      "samtools view -h ", shQuote(CLEAN_BAM), " $(cat ", shQuote(REP_LIST), ") | ",
+      "samtools view -b -o ", shQuote(IGV_BAM_U), " -"
+    )
+    system(cmd_step6a)
+    system(paste("samtools sort -o", shQuote(IGV_BAM_PRE), shQuote(IGV_BAM_U)))
+    system(paste("samtools index", shQuote(IGV_BAM_PRE)))
+    if (file.exists(IGV_BAM_U)) file.remove(IGV_BAM_U)
+    
+    if (!file.exists(IGV_BAM_PRE) || file.size(IGV_BAM_PRE) == 0) stop("[T1K IGV Step6] preRename bam missing: ", IGV_BAM_PRE)
+    
+    # 6-2 rename map (only contigs with reads >0 in preRename bam)
+    system(paste0(
+      "samtools idxstats ", shQuote(IGV_BAM_PRE), " | awk -F'\\t' '$3>0{print $1}' > ", shQuote(KEEP_CONTIGS)
+    ))
+    if (!file.exists(KEEP_CONTIGS) || file.size(KEEP_CONTIGS) == 0) stop("[T1K IGV Step6] keep contigs missing: ", KEEP_CONTIGS)
+    
+    system(paste0(
+      "awk 'BEGIN{FS=OFS=\"\\t\"}{old=$1; new=old; gsub(/_/,\"-\",new); print old,new}' ",
+      shQuote(KEEP_CONTIGS), " > ", shQuote(RENAME_MAP)
+    ))
+    if (!file.exists(RENAME_MAP) || file.size(RENAME_MAP) == 0) stop("[T1K IGV Step6] rename_map missing: ", RENAME_MAP)
+    
+    # 6-3 apply rename to BAM (header SN + RNAME)
+    # - We load MAP into awk and replace:
+    #   - @SQ SN:<old> -> SN:<new>
+    #   - alignment field 3 (RNAME) old -> new
+    cmd_step6c <- paste0(
+      "samtools view -h ", shQuote(IGV_BAM_PRE),
+      " | awk -v MAP=", shQuote(RENAME_MAP), " 'BEGIN{FS=OFS=\"\\t\";",
+      "  while((getline<MAP)>0){split($0,a,\"\\t\"); m[a[1]]=a[2]} close(MAP)",
+      "}",
+      " /^@SQ/ {",
+      "   for(i=1;i<=NF;i++){",
+      "     if($i ~ /^SN:/){old=substr($i,4); if(old in m){$i=\"SN:\"m[old]}}",
+      "   }",
+      "   print; next",
+      " }",
+      " /^@/ {print; next}",
+      " { if($3 in m) $3=m[$3]; print }' ",
+      " | samtools view -b - | samtools sort -o ", shQuote(IGV_BAM), " -"
+    )
+    system(cmd_step6c)
+    system(paste("samtools index", shQuote(IGV_BAM)))
+    
+    if (!file.exists(IGV_BAM) || file.size(IGV_BAM) == 0) stop("[T1K IGV Step6] final IGV bam missing: ", IGV_BAM)
+    
+    # ==========================================================
+    # Step 7) build IGV FASTA (ALL + split I/II) using KEEP_CONTIGS + RENAME_MAP
+    #   - keep only representative contigs
+    #   - rename '_' -> '-' to match IGV_BAM contigs
+    # ==========================================================
+    cmd_step7a <- paste0(
+      "awk -v KEEP=", shQuote(KEEP_CONTIGS), " -v MAP=", shQuote(RENAME_MAP), " '",
+      "function flush(){",
+      "  if(keep_flag){",
+      "    print \">\" newname;",
+      "    s=seq;",
+      "    while(length(s)>60){print substr(s,1,60); s=substr(s,61)}",
+      "    if(length(s)>0) print s",
+      "  }",
+      "}",
+      "BEGIN{",
+      "  while((getline x < KEEP)>0){sub(/\\r$/,\"\",x); if(x!=\"\") keep[x]=1} close(KEEP);",
+      "  while((getline y < MAP)>0){sub(/\\r$/,\"\",y); split(y,a,\"\\t\"); if(a[1]!=\"\") ren[a[1]]=a[2]} close(MAP);",
+      "  keep_flag=0; name=\"\"; newname=\"\"; seq=\"\"",
+      "}",
+      "/^>/{",
+      "  flush();",
+      "  line=substr($0,2); sub(/[ \\t].*$/,\"\",line);",
+      "  name=line;",
+      "  keep_flag=(name in keep);",
+      "  newname=(name in ren)? ren[name] : name;",
+      "  seq=\"\";",
+      "  next",
+      "}",
+      "{",
+      "  gsub(/[ \\t\\r]/,\"\",$0);",
+      "  if($0!=\"\") seq=seq $0",
+      "}",
+      "END{flush()}",
+      "' ",
+      shQuote(FA_I_RAW), " ", shQuote(FA_II_RAW),
+      " > ", shQuote(IGV_FA_ALL)
+    )
+    system(cmd_step7a)
+    
+    if (!file.exists(IGV_FA_ALL) || file.size(IGV_FA_ALL) == 0) stop("[T1K IGV Step7] IGV ALL fasta missing: ", IGV_FA_ALL)
+    
+    # split class I / II (same rule as HLA-HD)
+    cmd_split_i <- paste0(
+      "awk '",
+      "/^>/{name=substr($0,2); if(name ~ /^HLA-(A|B|C)\\*/) keep=1; else keep=0}",
+      "{if(keep) print}",
+      "' ",
+      shQuote(IGV_FA_ALL), " > ", shQuote(IGV_FA_I)
+    )
+    cmd_split_ii <- paste0(
+      "awk '",
+      "/^>/{name=substr($0,2); if(name ~ /^HLA-(DPA1|DPB1|DQA1|DQB1|DRB1)\\*/) keep=1; else keep=0}",
+      "{if(keep) print}",
+      "' ",
+      shQuote(IGV_FA_ALL), " > ", shQuote(IGV_FA_II)
+    )
+    system(cmd_split_i)
+    system(cmd_split_ii)
+    
+    # faidx
+    if (file.exists(IGV_FA_I) && file.size(IGV_FA_I) > 0)  system(paste("samtools faidx", shQuote(IGV_FA_I)))
+    if (file.exists(IGV_FA_II) && file.size(IGV_FA_II) > 0) system(paste("samtools faidx", shQuote(IGV_FA_II)))
+    
+    # Final sanity: BAM contigs == FASTA contigs for each class (optional quick check)
+    # (If you want strict check, we can add diff tests, but for now keep it light.)
+    
+    message("[T1K IGV] Final files ready:",
+            "\n  BAM: ", IGV_BAM,
+            "\n  Class I FASTA: ", IGV_FA_I,
+            "\n  Class II FASTA: ", IGV_FA_II)
+    
+    # Optional: remove heavy intermediates NOW (we can refine cleanup list later)
+    # file.remove(IGV_BAM_PRE, paste0(IGV_BAM_PRE, ".bai"))
+    #----------------------------------------------------------
+    
+    
+    #----------------------------------------------------------
     output$hla_typing_table <- renderDataTable({
       datatable(t1k_mhc_table,
                 filter = "top",
@@ -2295,25 +2634,6 @@ observeEvent(input$hla_typing_button, {
                 )
       )
     })
-    #----------------------------------------------------------
-    sequence_file <- NULL
-    
-    for (i in 1:nrow(t1k_mhc_table)) {
-      seq <- t1k_mhc_table[i, "Allele"]
-      nuc <- t1k_mhc_table[i, "nucleotide"]
-      prot <- t1k_mhc_table[i, "protein"]
-      
-      short_seq <- sub("^HLA-", "", seq)
-      
-      nucleotide_header <- paste0(">", short_seq, "_nucleotide")
-      protein_header <- paste0(">", short_seq, "_protein")
-      
-      seqs <- rbind(c(nucleotide_header), c(nuc), c(protein_header), c(prot))
-      sequence_file <- rbind(sequence_file, seqs)
-    }
-    
-    output_file <- file.path(WORK_ROOT, "Output", paste0("t1k_", input$sequence, "_", input$imgthla, ".txt"))
-    write(sequence_file, file = output_file)
     #----------------------------------------------------------
     zip_folder_pathway <- file.path(WORK_ROOT, paste0("Download/t1k_", input$sequence, "_", input$imgthla, "_zip"))
     dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
@@ -2371,8 +2691,6 @@ observeEvent(input$hla_typing_button, {
     ), file = file.path(history_dir, "result_data.rds"))
   }
   #----------------------------------------------------------
-  
-  
   w$hide()
   #----------------------------------------------------------
   # Calculate execution time
