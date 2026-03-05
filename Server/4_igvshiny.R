@@ -136,11 +136,6 @@ observeEvent(
       })
       shinyalert("Success", "OptiType reference uploaded successfully.", type = "success")
     } else if (current_tool == "HLA-HD") {
-      # HLA-HD I & II
-      # fasta_path_h_i <- file.path(active_dir, "hlahd_hla_reference_I_igv.fasta")
-      # fastaindex_path_h_i <- file.path(active_dir, "hlahd_hla_reference_I_igv.fasta.fai")
-      # fasta_path_h_ii <- file.path(active_dir, "hlahd_hla_reference_II_igv.fasta")
-      # fastaindex_path_h_ii <- file.path(active_dir, "hlahd_hla_reference_II_igv.fasta.fai")
       active_dir <- get_active_igv_dir("HLA-HD")
       
       # allele-centric references (NEW)

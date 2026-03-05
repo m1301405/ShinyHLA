@@ -1376,30 +1376,6 @@ observeEvent(input$hla_typing_button, {
         }
       }
       #----------------------------------------------------------
-      output$hla_typing_table <- renderDataTable({
-        datatable(hlahd_mhc_table,
-                  filter = "top",
-                  rownames = FALSE,
-                  selection = "none",
-                  class = "nowrap",
-                  options = list(
-                    pageLength = 8,
-                    autoWidth = TRUE,
-                    scrollX = TRUE,
-                    columnDefs = list(list(
-                      targets = "_all",
-                      width = "100px",
-                      render = JS(
-                        "function(data, type, row, meta) {",
-                        "return type === 'display' && data != null && data.length > 40 ?",
-                        "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
-                        "}"
-                      )
-                    ))
-                  )
-        )
-      })
-      #----------------------------------------------------------
       sequence_file <- NULL
       for (i in 1:nrow(hlahd_mhc_table)) {
         nucleotide <- paste(">", hlahd_mhc_table[i, 1], "_nucleotide", sep = "")
@@ -1750,11 +1726,6 @@ observeEvent(input$hla_typing_button, {
       bestnm_bam  <- "./IGV/hlahd/allelecentric.bestNM.bam"
       
       if (file.exists(primary_bam) && file.size(primary_bam) > 0) {
-        
-        # awk logic:
-        # - pass headers
-        # - parse NM:i:<int> (if missing, treat as very large)
-        # - keep the best record per QNAME: smaller NM, then higher MAPQ
         awk_prog <- paste(
           "BEGIN{FS=OFS=\"\\t\"; cur=\"\"; best_line=\"\"; best_nm=999999; best_mapq=-1}",
           "/^@/ {print; next}",
@@ -1846,19 +1817,230 @@ observeEvent(input$hla_typing_button, {
         warning("[HLA-HD IGV][Step5] bestNM BAM missing/empty: ", bestnm_bam)
       }
       #----------------------------------------------------------
-      #----------------------------------------------------------
-      #----------------------------------------------------------
-      #----------------------------------------------------------
-      #----------------------------------------------------------
-      #----------------------------------------------------------
-      #----------------------------------------------------------
-      #----------------------------------------------------------
-      #----------------------------------------------------------
-      #----------------------------------------------------------
-      #----------------------------------------------------------
+      # Step6: QC (Coverage / MeanDepth) on allele-centric BAM
+      bam   <- file.path(igv_dir, "allelecentric.CR.bam")
+      fasta <- file.path(igv_dir, "hlahd.igv.all.fasta")
       
+      contigs_all <- file.path(igv_dir, "igv_contigs_all.txt")
+      bam_mapped  <- file.path(igv_dir, "bam_contigs_mapped.txt")
+      contigs_qc  <- file.path(igv_dir, "igv_contigs_for_qc.txt")
+      qc_tsv      <- file.path(igv_dir, "coverage_tmp.tsv")
       
+      # Safety checks
+      if (!file.exists(bam) || file.size(bam) == 0) stop("[HLA-HD QC] Missing BAM: ", bam)
+      if (!file.exists(fasta) || file.size(fasta) == 0) stop("[HLA-HD QC] Missing FASTA: ", fasta)
       
+      # 1) contigs from FASTA (truth set)
+      system(paste(
+        "grep '^>'", shQuote(fasta),
+        "| sed 's/^>//' >",
+        shQuote(contigs_all)
+      ))
+      
+      # 2) contigs with mapped reads > 0 from BAM (safety filter)
+      system(paste(
+        "samtools idxstats", shQuote(bam),
+        "| awk -F'\\t' '$3>0{print $1}' >",
+        shQuote(bam_mapped)
+      ))
+      
+      # 3) intersect => contigs used for QC
+      system(paste(
+        "grep -Fxf", shQuote(bam_mapped), shQuote(contigs_all),
+        ">",
+        shQuote(contigs_qc)
+      ))
+      
+      # sanity logs (optional)
+      message("[Info] contigs in FASTA: ", length(readLines(contigs_all)))
+      message("[Info] contigs mapped>0 in BAM: ", length(readLines(bam_mapped)))
+      message("[Info] contigs used for QC: ", length(readLines(contigs_qc)))
+      
+      # 4) compute Coverage/MeanDepth per contig
+      system(paste(
+        "printf 'Contig\\tCoverage\\tMeanDepth\\n' >", shQuote(qc_tsv), "&&",
+        "while IFS= read -r ctg; do",
+        "  [ -z \"$ctg\" ] && continue;",
+        "  samtools depth -a -r \"$ctg\"", shQuote(bam),
+        "  | awk -v C=\"$ctg\" '{sum+=$3; n++; if($3>0) cov++} END{",
+        "      if(n==0){printf \"%s\\tNA\\tNA\\n\", C}",
+        "      else{printf \"%s\\t%.6f\\t%.6f\\n\", C, cov/n, sum/n}",
+        "    }' >>", shQuote(qc_tsv), ";",
+        "done <", shQuote(contigs_qc)
+      ))
+      
+      if (!file.exists(qc_tsv) || file.size(qc_tsv) == 0) {
+        stop("[HLA-HD QC] qc_tsv not generated: ", qc_tsv)
+      }
+      
+      # 5) merge QC back to hlahd_mhc_table
+      qc <- read.table(qc_tsv, sep="\t", header=TRUE, stringsAsFactors=FALSE, check.names=FALSE)
+      
+      need_cols <- c("Contig", "Coverage", "MeanDepth")
+      if (!all(need_cols %in% colnames(qc))) {
+        stop("[HLA-HD QC] qc_tsv header invalid. Got: ", paste(colnames(qc), collapse=","))
+      }
+      qc <- qc[!duplicated(qc$Contig), ]
+      
+      # table allele -> contig key：A*01:01:01 -> HLA-A*01-01-01
+      to_igv_key_hlahd <- function(a){
+        paste0("HLA-", gsub(":", "-", a, fixed=TRUE))
+      }
+      hlahd_mhc_table$IGV_KEY <- vapply(hlahd_mhc_table$Allele, to_igv_key_hlahd, character(1))
+      
+      m <- match(hlahd_mhc_table$IGV_KEY, qc$Contig)
+      hlahd_mhc_table$Coverage  <- qc$Coverage[m]
+      hlahd_mhc_table$MeanDepth <- qc$MeanDepth[m]
+      
+      # 6) formatting + color class
+      hlahd_mhc_table$Coverage_raw  <- suppressWarnings(as.numeric(hlahd_mhc_table$Coverage))
+      hlahd_mhc_table$MeanDepth_raw <- suppressWarnings(as.numeric(hlahd_mhc_table$MeanDepth))
+      
+      hlahd_mhc_table$Coverage <- ifelse(
+        is.na(hlahd_mhc_table$Coverage_raw),
+        "NA",
+        sprintf("%.2f%%", hlahd_mhc_table$Coverage_raw * 100)
+      )
+      hlahd_mhc_table$MeanDepth <- ifelse(
+        is.na(hlahd_mhc_table$MeanDepth_raw),
+        "NA",
+        sprintf("%.2f", hlahd_mhc_table$MeanDepth_raw)
+      )
+      
+      hlahd_mhc_table$Coverage_color <- ifelse(
+        is.na(hlahd_mhc_table$Coverage_raw), "na",
+        ifelse(hlahd_mhc_table$Coverage_raw >= 0.8, "good",
+               ifelse(hlahd_mhc_table$Coverage_raw >= 0.5, "mid", "bad"))
+      )
+      #----------------------------------------------------------
+      # --- normalize column names for display (HLA-HD) ---
+      if ("nucleotide" %in% colnames(hlahd_mhc_table) && !("Nucleotide" %in% colnames(hlahd_mhc_table))) {
+        colnames(hlahd_mhc_table)[colnames(hlahd_mhc_table) == "nucleotide"] <- "Nucleotide"
+      }
+      if ("protein" %in% colnames(hlahd_mhc_table) && !("Protein" %in% colnames(hlahd_mhc_table))) {
+        colnames(hlahd_mhc_table)[colnames(hlahd_mhc_table) == "protein"] <- "Protein"
+      }
+      #----------------------------------------------------------
+      show_cols <- c("Allele", "Coverage", "MeanDepth", "Nucleotide", "Protein", "Coverage_color")
+      show_cols <- show_cols[show_cols %in% colnames(hlahd_mhc_table)]
+      
+      if ("Coverage_color" %in% show_cols) {
+        show_cols <- c(setdiff(show_cols, "Coverage_color"), "Coverage_color")
+      }
+      hlahd_mhc_table <- hlahd_mhc_table[, show_cols, drop = FALSE]
+      #----------------------------------------------------------
+      output$hla_typing_table <- renderDataTable({
+        datatable(
+          hlahd_mhc_table,
+          rownames = FALSE,
+          selection = "none",
+          class = "nowrap",
+          options = list(
+            pageLength = 8,
+            autoWidth = TRUE,
+            scrollX = TRUE,
+            columnDefs = list(
+              list(
+                targets = which(colnames(hlahd_mhc_table) == "Coverage_color") - 1,
+                visible = FALSE
+              ),
+              list(
+                targets = which(colnames(hlahd_mhc_table) == "Coverage") - 1,
+                render = JS(
+                  "function(data, type, row, meta) {",
+                  "  if(type !== 'display') return data;",
+                  "  var color = row[row.length - 1];",
+                  "  var cls = '';",
+                  "  if(color === 'good') cls='color:#1b7f3a;';",
+                  "  else if(color === 'mid') cls='color:#b8860b;';",
+                  "  else if(color === 'bad') cls='color:#b22222;';",
+                  "  else cls='color:#666;';",
+                  "  return '<span style=\"' + cls + '\">' + data + '</span>';",
+                  "}"
+                )
+              ),
+              
+              list(
+                width = "100px",
+                targets = "_all",
+                render = JS(
+                  "function(data, type, row, meta) {",
+                  "return type === 'display' && data != null && data.length > 30 ?",
+                  "'<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>' : data;",
+                  "}"
+                )
+              )
+            )
+          )
+        )
+      })
+      #----------------------------------------------------------
+      # [CLEANUP] remove HLA-HD IGV intermediates in ./IGV/hlahd
+      # --- keep list (final deliverables + your preferred originals) ---
+      keep_files <- c(
+        # final allele-centric references for IGV
+        file.path(igv_dir, "hlahd.igv.classI.fasta"),
+        file.path(igv_dir, "hlahd.igv.classI.fasta.fai"),
+        file.path(igv_dir, "hlahd.igv.classII.fasta"),
+        file.path(igv_dir, "hlahd.igv.classII.fasta.fai"),
+        
+        # final BAM for IGV
+        file.path(igv_dir, "allelecentric.CR.bam"),
+        file.path(igv_dir, "allelecentric.CR.bam.bai"),
+        
+        # keep Step0 "initial IGV processing成果" (as you listed)
+        file.path(igv_dir, "sample.modified.bam"),
+        file.path(igv_dir, "sample.modified.bam.bai"),
+        
+        # keep old/reference FASTA (if you still produce these filenames)
+        file.path(igv_dir, "hlahd_hla_reference_I_igv.fasta"),
+        file.path(igv_dir, "hlahd_hla_reference_I_igv.fasta.fai"),
+        file.path(igv_dir, "hlahd_hla_reference_II_igv.fasta"),
+        file.path(igv_dir, "hlahd_hla_reference_II_igv.fasta.fai"),
+        
+        # (recommended) keep for reload/debug
+        file.path(igv_dir, "typed_alleles.txt"),
+        file.path(igv_dir, "hlahd.rename_map.tsv")
+      )
+      
+      # keep only those that exist (avoid setdiff issues)
+      keep_files <- unique(keep_files[file.exists(keep_files)])
+      
+      # list all top-level files under ./IGV/hlahd (do not recurse)
+      all_files <- list.files(igv_dir, full.names = TRUE, recursive = FALSE)
+      
+      # remove everything not in keep list
+      to_remove <- setdiff(all_files, keep_files)
+      
+      # additionally remove bowtie2 index (always intermediates)
+      bt2_idx <- Sys.glob(file.path(igv_dir, "hlahd_WES_igv*.bt2*"))
+      to_remove <- unique(c(to_remove, bt2_idx))
+      to_remove <- to_remove[file.exists(to_remove)]
+      
+      if (length(to_remove) > 0) {
+        ok_rm <- file.remove(to_remove)
+        if (any(!ok_rm)) {
+          warning("[Cleanup] Failed to remove some files:\n", paste(to_remove[!ok_rm], collapse = "\n"))
+        } else {
+          message("[Cleanup] Removed intermediates: ", length(to_remove), " files.")
+        }
+      } else {
+        message("[Cleanup] Nothing to remove.")
+      }
+      
+      # optional sanity: ensure key outputs still exist before backup
+      must_exist <- c(
+        file.path(igv_dir, "hlahd.igv.classI.fasta"),
+        file.path(igv_dir, "hlahd.igv.classI.fasta.fai"),
+        file.path(igv_dir, "hlahd.igv.classII.fasta"),
+        file.path(igv_dir, "hlahd.igv.classII.fasta.fai"),
+        file.path(igv_dir, "allelecentric.CR.bam"),
+        file.path(igv_dir, "allelecentric.CR.bam.bai")
+      )
+      missing <- must_exist[!file.exists(must_exist)]
+      if (length(missing) > 0) {
+        stop("[Cleanup] Missing required final IGV files after cleanup:\n", paste(missing, collapse = "\n"))
+      }
       #----------------------------------------------------------
       zip_folder_pathway <- file.path(WORK_ROOT, "Download", paste0("hlahd_", input$sequence, "_", input$imgthla, "_zip"))
       dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
