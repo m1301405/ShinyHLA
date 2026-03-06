@@ -143,21 +143,53 @@ observeEvent(input$jobid_load_button, {
   package_value(loaded_data$tool)
   
   current_mode("reload")
-  current_tmp_zip(NULL) # reload 不用 tmp
+  current_tmp_zip(NULL)
   
   current_history_zip(normalizePath(resolved_zip, winslash = "/", mustWork = FALSE))
   current_prefix(basename(resolved_zip))
   
-  # Reset IGV button to force user to click again to load/update IGV
   shinyjs::reset("igv_reference")
   
   # ------------------------------------------------------------
   # UI: table
   # ------------------------------------------------------------
   output$hla_typing_table <- renderDataTable({
-    datatable(
-      loaded_data$table,
-      filter = "top",
+    df <- loaded_data$table
+    
+    if ("nucleotide" %in% colnames(df) && !("Nucleotide" %in% colnames(df))) {
+      colnames(df)[colnames(df) == "nucleotide"] <- "Nucleotide"
+    }
+    if ("protein" %in% colnames(df) && !("Protein" %in% colnames(df))) {
+      colnames(df)[colnames(df) == "protein"] <- "Protein"
+    }
+    
+    if (!("Coverage_raw" %in% colnames(df))) {
+      if ("Coverage" %in% colnames(df)) {
+        df$Coverage_raw <- suppressWarnings(as.numeric(sub("%", "", df$Coverage, fixed = TRUE)) / 100)
+      } else {
+        df$Coverage_raw <- NA_real_
+      }
+    }
+    
+    if (!("MeanDepth_raw" %in% colnames(df))) {
+      if ("MeanDepth" %in% colnames(df)) {
+        df$MeanDepth_raw <- suppressWarnings(as.numeric(df$MeanDepth))
+      } else {
+        df$MeanDepth_raw <- NA_real_
+      }
+    }
+    
+    if ("Coverage_color" %in% colnames(df)) df$Coverage_color <- NULL
+    
+    want_cols <- c("Allele", "Coverage", "MeanDepth", "Nucleotide", "Protein", "Coverage_raw", "MeanDepth_raw")
+    keep_cols <- want_cols[want_cols %in% colnames(df)]
+    df <- df[, keep_cols, drop = FALSE]
+    
+    idx_cov_raw <- which(colnames(df) == "Coverage_raw") - 1
+    idx_md_raw  <- which(colnames(df) == "MeanDepth_raw") - 1
+    
+    dt <- datatable(
+      df,
       rownames = FALSE,
       selection = "none",
       class = "nowrap",
@@ -165,18 +197,35 @@ observeEvent(input$jobid_load_button, {
         pageLength = 8,
         autoWidth = TRUE,
         scrollX = TRUE,
-        columnDefs = list(list(
-          width = "100px",
-          targets = "_all",
-          render = JS(
-            "function(data, type, row, meta) {",
-            "return type === 'display' && data != null && data.length > 40 ?",
-            "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
-            "}"
+        columnDefs = Filter(
+          Negate(is.null),
+          list(
+            if (length(idx_cov_raw) == 1 && idx_cov_raw >= 0) list(targets = idx_cov_raw, visible = FALSE) else NULL,
+            if (length(idx_md_raw) == 1 && idx_md_raw >= 0) list(targets = idx_md_raw, visible = FALSE) else NULL,
+            list(
+              width = "100px",
+              targets = "_all",
+              render = JS(
+                "function(data, type, row, meta) {",
+                "return type === 'display' && data != null && data.length > 40 ?",
+                "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
+                "}"
+              )
+            )
           )
-        ))
+        )
       )
     )
+    
+    dt %>%
+      formatStyle(
+        "Coverage",
+        valueColumns = "Coverage_raw",
+        color = styleInterval(
+          c(0.5, 0.8),
+          c("#b22222", "#b8860b", "#1b7f3a")
+        )
+      )
   })
   
   # UI: summary
@@ -194,9 +243,7 @@ observeEvent(input$jobid_load_button, {
   w$hide()
   shinyalert("Success", paste("JobID:", jid, "loaded successfully."), type = "success")
 })
-
-
-
+#-----------------------------------------------------------------------
 ## Demo QC option
 wes_demo_uploaded_once <- reactiveVal(FALSE)
 
@@ -213,7 +260,7 @@ observeEvent(input$demo_upload_button, {
     }
   }
 })
-
+#-----------------------------------------------------------------------
 output$show_qc_button <- reactive({
   (input$upload_choice == "bam" && input$bam_upload_button >= 1) ||
     (input$upload_choice == "demo" && is_current_demo_wes() && wes_demo_uploaded_once())

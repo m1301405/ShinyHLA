@@ -609,16 +609,6 @@ observeEvent(input$hla_typing_button, {
       ))
       #----------------------------------------------------------
       # merge to optitype_mhc_table
-      qc <- read.table(qc_tsv, sep="\t", header=TRUE, stringsAsFactors=FALSE)
-      
-      to_igv_key <- function(a){
-        parts <- strsplit(a, ":", fixed=TRUE)[[1]]
-        a2 <- if (length(parts) >= 2) paste(parts[1], parts[2], sep=":") else a
-        paste0("HLA-", gsub(":", "-", a2, fixed=TRUE))
-      }
-      
-      optitype_mhc_table$IGV_KEY <- vapply(optitype_mhc_table$Allele, to_igv_key, character(1))
-      
       qc <- read.table(qc_tsv, sep = "\t", header = TRUE, stringsAsFactors = FALSE, check.names = FALSE)
       
       need_cols <- c("HLA", "Coverage", "MeanDepth")
@@ -633,6 +623,7 @@ observeEvent(input$hla_typing_button, {
         a2 <- if (length(parts) >= 2) paste(parts[1], parts[2], sep=":") else a
         paste0("HLA-", gsub(":", "-", a2, fixed = TRUE))
       }
+      
       optitype_mhc_table$IGV_KEY <- vapply(optitype_mhc_table$Allele, to_igv_key, character(1))
       
       m <- match(optitype_mhc_table$IGV_KEY, qc$HLA)
@@ -655,13 +646,6 @@ observeEvent(input$hla_typing_button, {
         "NA",
         sprintf("%.2f", optitype_mhc_table$MeanDepth_raw)
       )
-      
-      optitype_mhc_table$Coverage_color <- ifelse(
-        is.na(optitype_mhc_table$Coverage_raw), "na",
-        ifelse(optitype_mhc_table$Coverage_raw >= 0.8, "good",
-               ifelse(optitype_mhc_table$Coverage_raw >= 0.5, "mid", "bad"))
-      )
-      
 
       if ("nucleotide" %in% colnames(optitype_mhc_table)) {
         colnames(optitype_mhc_table)[colnames(optitype_mhc_table)=="nucleotide"] <- "Nucleotide"
@@ -676,14 +660,13 @@ observeEvent(input$hla_typing_button, {
         "MeanDepth",
         "Nucleotide",
         "Protein",
-        "Coverage_color"
+        "Coverage_raw",
+        "MeanDepth_raw"
       )]
       #----------------------------------------------------------
       output$hla_typing_table <- renderDataTable({
-        df <- optitype_mhc_table   # <<<< 這行換成：hlahd_mhc_table 或 t1k_mhc_table
+        df <- optitype_mhc_table
         
-        # ---------- hardening: reload 後也能上色 ----------
-        # 1) Coverage_raw 必須存在；如果 reload 回來只有 "70.86%"，這裡補回 raw
         if (!("Coverage_raw" %in% colnames(df))) {
           if ("Coverage" %in% colnames(df)) {
             df$Coverage_raw <- suppressWarnings(as.numeric(sub("%", "", df$Coverage, fixed = TRUE)) / 100)
@@ -692,22 +675,32 @@ observeEvent(input$hla_typing_button, {
           }
         }
         
-        # 2) Coverage_color 不再需要；就算存在也丟掉（避免你截圖那個欄跑出來）
-        if ("Coverage_color" %in% colnames(df)) {
-          df$Coverage_color <- NULL
+        if (!("MeanDepth_raw" %in% colnames(df))) {
+          if ("MeanDepth" %in% colnames(df)) {
+            df$MeanDepth_raw <- suppressWarnings(as.numeric(df$MeanDepth))
+          } else {
+            df$MeanDepth_raw <- NA_real_
+          }
         }
         
-        # 3) 確保顯示欄位順序（你想要的樣式）
-        want_cols <- c("Allele", "Coverage", "MeanDepth", "Nucleotide", "Protein", "Coverage_raw")
+        if ("Coverage_color" %in% colnames(df)) df$Coverage_color <- NULL
+        
+        if ("nucleotide" %in% colnames(df) && !("Nucleotide" %in% colnames(df))) {
+          colnames(df)[colnames(df) == "nucleotide"] <- "Nucleotide"
+        }
+        if ("protein" %in% colnames(df) && !("Protein" %in% colnames(df))) {
+          colnames(df)[colnames(df) == "protein"] <- "Protein"
+        }
+        
+        want_cols <- c("Allele", "Coverage", "MeanDepth", "Nucleotide", "Protein", "Coverage_raw", "MeanDepth_raw")
         keep_cols <- want_cols[want_cols %in% colnames(df)]
         df <- df[, keep_cols, drop = FALSE]
         
-        # 4) 計算 Coverage_raw 的 column index（DataTables 0-based）
-        idx_cov_raw <- which(colnames(df) == "Coverage_raw") - 1
+        idx_cov_raw  <- which(colnames(df) == "Coverage_raw") - 1
+        idx_md_raw   <- which(colnames(df) == "MeanDepth_raw") - 1
         
         dt <- datatable(
           df,
-          filter = "top",
           rownames = FALSE,
           selection = "none",
           class = "nowrap",
@@ -718,19 +711,15 @@ observeEvent(input$hla_typing_button, {
             columnDefs = Filter(
               Negate(is.null),
               list(
-                # hide Coverage_raw helper col
-                if (length(idx_cov_raw) == 1 && idx_cov_raw >= 0) {
-                  list(targets = idx_cov_raw, visible = FALSE)
-                } else NULL,
-                
-                # truncate all columns with tooltip
+                if (length(idx_cov_raw) == 1 && idx_cov_raw >= 0) list(targets = idx_cov_raw, visible = FALSE) else NULL,
+                if (length(idx_md_raw) == 1 && idx_md_raw >= 0) list(targets = idx_md_raw, visible = FALSE) else NULL,
                 list(
                   width = "100px",
                   targets = "_all",
                   render = JS(
                     "function(data, type, row, meta) {",
-                    "  return type === 'display' && data != null && data.length > 30 ?",
-                    "    '<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>' : data;",
+                    "return type === 'display' && data != null && data.length > 30 ?",
+                    "'<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>' : data;",
                     "}"
                   )
                 )
@@ -739,61 +728,16 @@ observeEvent(input$hla_typing_button, {
           )
         )
         
-        # --------- Coverage 上色（不靠欄位位置）---------
         dt %>%
           formatStyle(
             "Coverage",
             valueColumns = "Coverage_raw",
             color = styleInterval(
-              c(0.5, 0.8),  # <0.5 bad, 0.5-0.8 mid, >=0.8 good
+              c(0.5, 0.8),
               c("#b22222", "#b8860b", "#1b7f3a")
             )
           )
       })
-      #----------------------------------------------------------
-      # output$hla_typing_table <- renderDataTable({
-      #   datatable(
-      #     optitype_mhc_table,
-      #     rownames = FALSE,
-      #     selection = "none",
-      #     class = "nowrap",
-      #     options = list(
-      #       pageLength = 8,
-      #       autoWidth = TRUE,
-      #       scrollX = TRUE,
-      #       columnDefs = list(
-      #         list(targets = which(colnames(optitype_mhc_table)=="Coverage_color") - 1, visible = FALSE),
-      #         
-      #         list(
-      #           targets = which(colnames(optitype_mhc_table)=="Coverage") - 1,
-      #           render = JS(
-      #             "function(data, type, row, meta) {",
-      #             "  if(type !== 'display') return data;",
-      #             "  var color = row[row.length - 1];",
-      #             "  var cls = '';",
-      #             "  if(color === 'good') cls='color:#1b7f3a;';",
-      #             "  else if(color === 'mid') cls='color:#b8860b;';",
-      #             "  else if(color === 'bad') cls='color:#b22222;';",
-      #             "  else cls='color:#666;';",
-      #             "  return '<span style=\"' + cls + '\">' + data + '</span>';",
-      #             "}"
-      #           )
-      #         ),
-      #         
-      #         list(
-      #           width = "100px",
-      #           targets = "_all",
-      #           render = JS(
-      #             "function(data, type, row, meta) {",
-      #             "return type === 'display' && data != null && data.length > 30 ?",
-      #             "'<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>' : data;",
-      #             "}"
-      #           )
-      #         )
-      #       )
-      #     )
-      #   )
-      # })
       #----------------------------------------------------------
       if (file.exists(qc_tsv)) file.remove(qc_tsv)
       if (file.exists(igv_contigs)) file.remove(igv_contigs)
@@ -1946,17 +1890,17 @@ observeEvent(input$hla_typing_button, {
       }
       
       # 5) merge QC back to hlahd_mhc_table
-      qc <- read.table(qc_tsv, sep="\t", header=TRUE, stringsAsFactors=FALSE, check.names=FALSE)
+      qc <- read.table(qc_tsv, sep = "\t", header = TRUE, stringsAsFactors = FALSE, check.names = FALSE)
       
       need_cols <- c("Contig", "Coverage", "MeanDepth")
       if (!all(need_cols %in% colnames(qc))) {
-        stop("[HLA-HD QC] qc_tsv header invalid. Got: ", paste(colnames(qc), collapse=","))
+        stop("[HLA-HD QC] qc_tsv header invalid. Got: ", paste(colnames(qc), collapse = ","))
       }
       qc <- qc[!duplicated(qc$Contig), ]
       
       # table allele -> contig key：A*01:01:01 -> HLA-A*01-01-01
       to_igv_key_hlahd <- function(a){
-        paste0("HLA-", gsub(":", "-", a, fixed=TRUE))
+        paste0("HLA-", gsub(":", "-", a, fixed = TRUE))
       }
       hlahd_mhc_table$IGV_KEY <- vapply(hlahd_mhc_table$Allele, to_igv_key_hlahd, character(1))
       
@@ -1964,7 +1908,7 @@ observeEvent(input$hla_typing_button, {
       hlahd_mhc_table$Coverage  <- qc$Coverage[m]
       hlahd_mhc_table$MeanDepth <- qc$MeanDepth[m]
       
-      # 6) formatting + color class
+      # 6) formatting
       hlahd_mhc_table$Coverage_raw  <- suppressWarnings(as.numeric(hlahd_mhc_table$Coverage))
       hlahd_mhc_table$MeanDepth_raw <- suppressWarnings(as.numeric(hlahd_mhc_table$MeanDepth))
       
@@ -1979,11 +1923,6 @@ observeEvent(input$hla_typing_button, {
         sprintf("%.2f", hlahd_mhc_table$MeanDepth_raw)
       )
       
-      hlahd_mhc_table$Coverage_color <- ifelse(
-        is.na(hlahd_mhc_table$Coverage_raw), "na",
-        ifelse(hlahd_mhc_table$Coverage_raw >= 0.8, "good",
-               ifelse(hlahd_mhc_table$Coverage_raw >= 0.5, "mid", "bad"))
-      )
       #----------------------------------------------------------
       # --- normalize column names for display (HLA-HD) ---
       if ("nucleotide" %in% colnames(hlahd_mhc_table) && !("Nucleotide" %in% colnames(hlahd_mhc_table))) {
@@ -1992,18 +1931,49 @@ observeEvent(input$hla_typing_button, {
       if ("protein" %in% colnames(hlahd_mhc_table) && !("Protein" %in% colnames(hlahd_mhc_table))) {
         colnames(hlahd_mhc_table)[colnames(hlahd_mhc_table) == "protein"] <- "Protein"
       }
-      #----------------------------------------------------------
-      show_cols <- c("Allele", "Coverage", "MeanDepth", "Nucleotide", "Protein", "Coverage_color")
-      show_cols <- show_cols[show_cols %in% colnames(hlahd_mhc_table)]
       
-      if ("Coverage_color" %in% show_cols) {
-        show_cols <- c(setdiff(show_cols, "Coverage_color"), "Coverage_color")
-      }
+      show_cols <- c("Allele", "Coverage", "MeanDepth", "Nucleotide", "Protein", "Coverage_raw", "MeanDepth_raw")
+      show_cols <- show_cols[show_cols %in% colnames(hlahd_mhc_table)]
       hlahd_mhc_table <- hlahd_mhc_table[, show_cols, drop = FALSE]
+      
       #----------------------------------------------------------
       output$hla_typing_table <- renderDataTable({
-        datatable(
-          hlahd_mhc_table,
+        df <- hlahd_mhc_table
+        
+        if (!("Coverage_raw" %in% colnames(df))) {
+          if ("Coverage" %in% colnames(df)) {
+            df$Coverage_raw <- suppressWarnings(as.numeric(sub("%", "", df$Coverage, fixed = TRUE)) / 100)
+          } else {
+            df$Coverage_raw <- NA_real_
+          }
+        }
+        
+        if (!("MeanDepth_raw" %in% colnames(df))) {
+          if ("MeanDepth" %in% colnames(df)) {
+            df$MeanDepth_raw <- suppressWarnings(as.numeric(df$MeanDepth))
+          } else {
+            df$MeanDepth_raw <- NA_real_
+          }
+        }
+        
+        if ("Coverage_color" %in% colnames(df)) df$Coverage_color <- NULL
+        
+        if ("nucleotide" %in% colnames(df) && !("Nucleotide" %in% colnames(df))) {
+          colnames(df)[colnames(df) == "nucleotide"] <- "Nucleotide"
+        }
+        if ("protein" %in% colnames(df) && !("Protein" %in% colnames(df))) {
+          colnames(df)[colnames(df) == "protein"] <- "Protein"
+        }
+        
+        want_cols <- c("Allele", "Coverage", "MeanDepth", "Nucleotide", "Protein", "Coverage_raw", "MeanDepth_raw")
+        keep_cols <- want_cols[want_cols %in% colnames(df)]
+        df <- df[, keep_cols, drop = FALSE]
+        
+        idx_cov_raw <- which(colnames(df) == "Coverage_raw") - 1
+        idx_md_raw  <- which(colnames(df) == "MeanDepth_raw") - 1
+        
+        dt <- datatable(
+          df,
           rownames = FALSE,
           selection = "none",
           class = "nowrap",
@@ -2011,40 +1981,35 @@ observeEvent(input$hla_typing_button, {
             pageLength = 8,
             autoWidth = TRUE,
             scrollX = TRUE,
-            columnDefs = list(
+            columnDefs = Filter(
+              Negate(is.null),
               list(
-                targets = which(colnames(hlahd_mhc_table) == "Coverage_color") - 1,
-                visible = FALSE
-              ),
-              list(
-                targets = which(colnames(hlahd_mhc_table) == "Coverage") - 1,
-                render = JS(
-                  "function(data, type, row, meta) {",
-                  "  if(type !== 'display') return data;",
-                  "  var color = row[row.length - 1];",
-                  "  var cls = '';",
-                  "  if(color === 'good') cls='color:#1b7f3a;';",
-                  "  else if(color === 'mid') cls='color:#b8860b;';",
-                  "  else if(color === 'bad') cls='color:#b22222;';",
-                  "  else cls='color:#666;';",
-                  "  return '<span style=\"' + cls + '\">' + data + '</span>';",
-                  "}"
-                )
-              ),
-              
-              list(
-                width = "100px",
-                targets = "_all",
-                render = JS(
-                  "function(data, type, row, meta) {",
-                  "return type === 'display' && data != null && data.length > 30 ?",
-                  "'<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>' : data;",
-                  "}"
+                if (length(idx_cov_raw) == 1 && idx_cov_raw >= 0) list(targets = idx_cov_raw, visible = FALSE) else NULL,
+                if (length(idx_md_raw) == 1 && idx_md_raw >= 0) list(targets = idx_md_raw, visible = FALSE) else NULL,
+                list(
+                  width = "100px",
+                  targets = "_all",
+                  render = JS(
+                    "function(data, type, row, meta) {",
+                    "return type === 'display' && data != null && data.length > 30 ?",
+                    "'<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>' : data;",
+                    "}"
+                  )
                 )
               )
             )
           )
         )
+        
+        dt %>%
+          formatStyle(
+            "Coverage",
+            valueColumns = "Coverage_raw",
+            color = styleInterval(
+              c(0.5, 0.8),
+              c("#b22222", "#b8860b", "#1b7f3a")
+            )
+          )
       })
       #----------------------------------------------------------
       # [CLEANUP] remove HLA-HD IGV intermediates in ./IGV/hlahd
@@ -2734,7 +2699,6 @@ observeEvent(input$hla_typing_button, {
     if (!file.exists(KEEP_CONTIGS) || file.size(KEEP_CONTIGS) == 0) stop("[T1K QC] Missing KEEP_CONTIGS: ", KEEP_CONTIGS)
     if (!file.exists(RENAME_MAP) || file.size(RENAME_MAP) == 0) stop("[T1K QC] Missing RENAME_MAP: ", RENAME_MAP)
     if (!file.exists(REP_SUMMARY) || file.size(REP_SUMMARY) == 0) stop("[T1K QC] Missing rep_summary.tsv: ", REP_SUMMARY)
-    
     #-----------------------
     # 1) QC on preRename BAM (underscore contigs)
     #-----------------------
@@ -2797,14 +2761,14 @@ observeEvent(input$hla_typing_button, {
     t1k_mhc_table$PREFIX_KEY <- vapply(t1k_mhc_table$Allele, to_prefix_underscore, character(1))
     
     m1 <- match(t1k_mhc_table$PREFIX_KEY, rep_map$prefix)
-    t1k_mhc_table$IGV_CONTIG <- rep_map$rep_contig_new[m1]  # dash contig name
+    t1k_mhc_table$IGV_CONTIG <- rep_map$rep_contig_new[m1]
     
     m2 <- match(t1k_mhc_table$IGV_CONTIG, qc$Contig)
     t1k_mhc_table$Coverage  <- qc$Coverage[m2]
     t1k_mhc_table$MeanDepth <- qc$MeanDepth[m2]
     
     #-----------------------
-    # 5) format + color class (same as HLA-HD/OptiType)
+    # 5) format
     #-----------------------
     t1k_mhc_table$Coverage_raw  <- suppressWarnings(as.numeric(t1k_mhc_table$Coverage))
     t1k_mhc_table$MeanDepth_raw <- suppressWarnings(as.numeric(t1k_mhc_table$MeanDepth))
@@ -2820,14 +2784,8 @@ observeEvent(input$hla_typing_button, {
       sprintf("%.2f", t1k_mhc_table$MeanDepth_raw)
     )
     
-    t1k_mhc_table$Coverage_color <- ifelse(
-      is.na(t1k_mhc_table$Coverage_raw), "na",
-      ifelse(t1k_mhc_table$Coverage_raw >= 0.8, "good",
-             ifelse(t1k_mhc_table$Coverage_raw >= 0.5, "mid", "bad"))
-    )
-    
     #-----------------------
-    # 6) normalize seq column names (match HLA-HD)
+    # 6) normalize seq column names
     #-----------------------
     if ("nucleotide" %in% colnames(t1k_mhc_table) && !("Nucleotide" %in% colnames(t1k_mhc_table))) {
       colnames(t1k_mhc_table)[colnames(t1k_mhc_table) == "nucleotide"] <- "Nucleotide"
@@ -2837,17 +2795,50 @@ observeEvent(input$hla_typing_button, {
     }
     
     #-----------------------
-    # 7) FINAL: reorder columns (NO t1k_mhc_table_show)
-    #   Coverage_color must be last for JS row[row.length-1]
+    # 7) FINAL: reorder columns
     #-----------------------
-    show_cols <- c("Allele", "Coverage", "MeanDepth", "Nucleotide", "Protein", "Coverage_color")
+    show_cols <- c("Allele", "Coverage", "MeanDepth", "Nucleotide", "Protein", "Coverage_raw", "MeanDepth_raw")
     show_cols <- show_cols[show_cols %in% colnames(t1k_mhc_table)]
-    show_cols <- c(setdiff(show_cols, "Coverage_color"), "Coverage_color")
     t1k_mhc_table <- t1k_mhc_table[, show_cols, drop = FALSE]
+    
     #----------------------------------------------------------
     output$hla_typing_table <- renderDataTable({
-      datatable(
-        t1k_mhc_table,
+      df <- t1k_mhc_table
+      
+      if (!("Coverage_raw" %in% colnames(df))) {
+        if ("Coverage" %in% colnames(df)) {
+          df$Coverage_raw <- suppressWarnings(as.numeric(sub("%", "", df$Coverage, fixed = TRUE)) / 100)
+        } else {
+          df$Coverage_raw <- NA_real_
+        }
+      }
+      
+      if (!("MeanDepth_raw" %in% colnames(df))) {
+        if ("MeanDepth" %in% colnames(df)) {
+          df$MeanDepth_raw <- suppressWarnings(as.numeric(df$MeanDepth))
+        } else {
+          df$MeanDepth_raw <- NA_real_
+        }
+      }
+      
+      if ("Coverage_color" %in% colnames(df)) df$Coverage_color <- NULL
+      
+      if ("nucleotide" %in% colnames(df) && !("Nucleotide" %in% colnames(df))) {
+        colnames(df)[colnames(df) == "nucleotide"] <- "Nucleotide"
+      }
+      if ("protein" %in% colnames(df) && !("Protein" %in% colnames(df))) {
+        colnames(df)[colnames(df) == "protein"] <- "Protein"
+      }
+      
+      want_cols <- c("Allele", "Coverage", "MeanDepth", "Nucleotide", "Protein", "Coverage_raw", "MeanDepth_raw")
+      keep_cols <- want_cols[want_cols %in% colnames(df)]
+      df <- df[, keep_cols, drop = FALSE]
+      
+      idx_cov_raw <- which(colnames(df) == "Coverage_raw") - 1
+      idx_md_raw  <- which(colnames(df) == "MeanDepth_raw") - 1
+      
+      dt <- datatable(
+        df,
         filter = "top",
         rownames = FALSE,
         selection = "none",
@@ -2856,46 +2847,36 @@ observeEvent(input$hla_typing_button, {
           pageLength = 8,
           autoWidth = TRUE,
           scrollX = TRUE,
-          columnDefs = list(
-            # hide Coverage_color helper column
+          columnDefs = Filter(
+            Negate(is.null),
             list(
-              targets = (which(colnames(t1k_mhc_table) == "Coverage_color") - 1),
-              visible = FALSE
-            ),
-            
-            # Coverage colored by Coverage_color (last hidden col)
-            list(
-              targets = (which(colnames(t1k_mhc_table) == "Coverage") - 1),
-              render = JS(
-                "function(data, type, row, meta) {",
-                "  if(type !== 'display') return data;",
-                "  var color = row[row.length - 1];",
-                "  var cls = '';",
-                "  if(color === 'good') cls='color:#1b7f3a;';",
-                "  else if(color === 'mid') cls='color:#b8860b;';",
-                "  else if(color === 'bad') cls='color:#b22222;';",
-                "  else cls='color:#666;';",
-                "  return '<span style=\"' + cls + '\">' + data + '</span>';",
-                "}"
-              )
-            ),
-            
-            # truncate all columns with tooltip
-            list(
-              width = "100px",
-              targets = "_all",
-              render = JS(
-                "function(data, type, row, meta) {",
-                "  return type === 'display' && data != null && data.length > 30 ?",
-                "    '<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>' : data;",
-                "}"
+              if (length(idx_cov_raw) == 1 && idx_cov_raw >= 0) list(targets = idx_cov_raw, visible = FALSE) else NULL,
+              if (length(idx_md_raw) == 1 && idx_md_raw >= 0) list(targets = idx_md_raw, visible = FALSE) else NULL,
+              list(
+                width = "100px",
+                targets = "_all",
+                render = JS(
+                  "function(data, type, row, meta) {",
+                  "  return type === 'display' && data != null && data.length > 30 ?",
+                  "    '<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>' : data;",
+                  "}"
+                )
               )
             )
           )
         )
       )
+      
+      dt %>%
+        formatStyle(
+          "Coverage",
+          valueColumns = "Coverage_raw",
+          color = styleInterval(
+            c(0.5, 0.8),
+            c("#b22222", "#b8860b", "#1b7f3a")
+          )
+        )
     })
-    #----------------------------------------------------------
     #----------------------------------------------------------
     # [T1K IGV Cleanup] remove intermediates
     # Keep:
@@ -2903,7 +2884,6 @@ observeEvent(input$hla_typing_button, {
     #   - IGV BAM
     #   - reference FASTA
     #----------------------------------------------------------
-    
     active_dir <- igv_dir
     message("[T1K Cleanup] active_dir=", active_dir)
     
