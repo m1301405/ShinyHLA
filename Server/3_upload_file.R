@@ -148,8 +148,8 @@ observeEvent(input$jobid_load_button, {
   current_history_zip(normalizePath(resolved_zip, winslash = "/", mustWork = FALSE))
   current_prefix(basename(resolved_zip))
   
-  # Reset IGV button to force user to click again to load/update IGV
-  shinyjs::reset("igv_reference")
+  # # Reset IGV button to force user to click again to load/update IGV
+  # shinyjs::reset("igv_reference")
   
   # ------------------------------------------------------------
   # UI: table

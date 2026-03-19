@@ -1,4 +1,5 @@
 tabItem(tabName = "hla",
+        
         fluidRow(
           column(
             width = 12,
@@ -12,12 +13,18 @@ tabItem(tabName = "hla",
               solidHeader = FALSE,
               maximizable = TRUE,
               status = "success",
+              
               fluidRow(
                 column(
                   width = 3,
-                  selectInput("sequence",label = "NGS type:", choices = HLA_typing %>% pull(NGS_type) %>% unique(), selected = "WES"),
+                  
+                  selectInput("sequence",label = "NGS type:", 
+                              choices = HLA_typing %>% pull(NGS_type) %>% unique(), 
+                              selected = "WES"),
+                  
                   selectInput("imgthla", label = "IPD-IMGT/HLA version:", choices = NULL),
                   selectInput("package", label = "Typing tool:", choices = NULL),
+                  
                   div(
                     style = "display: flex; align-items: center;",
                     actionButton(
@@ -34,43 +41,54 @@ tabItem(tabName = "hla",
                       )
                     )
                   ),
+                  
                   conditionalPanel(
                     condition = "input.hla_typing_button >= 1",
+                    
                     tags$hr(),
                     tags$p("Summarize:", style = "font-weight: bold; margin-right: 10px;"),
+                    
                     div(
                       style = "display: flex; align-items: center;",
+                      
                       actionButton(
                         inputId = "mhci_pivottable_button",
                         label = "MHC class I",
                         style = "margin-right: 10px;"
                       ),
+                      
                       actionButton(
                         inputId = "mhcii_pivottable_button",
                         label = "MHC class II",
                         style = "margin-right: 10px;"
                       ),
+                      
                       tooltip(
                         icon("info-circle"),
-                        title = "Use the MHC Class I & II buttons to organize genotyping results into tables. Drag and drop to adjust columns and rows.",
+                        title = "Use the MHC Class I & II buttons to organize genotyping results into tables.",
                         placement = "right"
                       )
                     ),
+                    
                     tags$hr(),
+                    
                     div(
                       style = "height: 200px; overflow-y: auto;",
                       uiOutput("hla_log")
                     )
                   )
                 ),
+                
                 column(
                   width = 9,
+                  
                   tabsetPanel(
                     id = "hla_panel",
+                    
                     tabPanel(
                       title = "Result",
                       tags$br(),
-                      # === NEW: scroll container for entire result area ===
+                      
                       tags$div(
                         class = "hla-result-scroll",
                         tags$div(
@@ -83,28 +101,21 @@ tabItem(tabName = "hla",
                               uiOutput("summary_boxes"),
                               tags$hr(style = "margin: 20px 0;"),
                               
-                              # DT: keep width 100% inside inner container; overflow handled by outer scroll
                               DTOutput("hla_typing_table", width = "100%"),
-                              
                               tags$br()
                             ),
                             
-                            # Bottom buttons row
                             tags$div(
-                              style = "display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 10px;",
-                              
-                              conditionalPanel(
-                                condition = "(input.hla_typing_button >= 1 || input.jobid_load_button >= 1) && input.package_value_ui != 'arcasHLA'",
-                                div(
-                                  actionButton(inputId = "igv_reference", label = "IGV", icon = icon("dna"), class = "btn-outline-danger"),
-                                  tooltip(icon("info-circle"), title = "Visualize alignment results.", placement = "right")
-                                )
-                              ),
+                              style = "display: flex; justify-content: flex-end; align-items: center; width: 100%; margin-top: 10px;",
                               
                               conditionalPanel(
                                 condition = "input.hla_typing_button >= 1 || input.jobid_load_button >= 1",
                                 div(
-                                  downloadButton(outputId = "hla_typing_download", label = "Download", class = "btn-outline-success"),
+                                  downloadButton(
+                                    outputId = "hla_typing_download", 
+                                    label = "Download", 
+                                    class = "btn-outline-success"
+                                  ),
                                   tooltip(icon("info-circle"), title = "Save sequences in FASTA format.", placement = "right")
                                 )
                               )
@@ -113,6 +124,7 @@ tabItem(tabName = "hla",
                         )
                       )
                     ),
+                    
                     tabPanel(
                       title = "MHC class I",
                       fluidRow(
@@ -131,41 +143,32 @@ tabItem(tabName = "hla",
                               ),
                               add_rank_list(
                                 text = HTML("Columns (<i>maximum=2</i>)"),
-                                labels = list("NGS_type" = "NGS Type", 
-                                              "Tool" = "Tool"),
+                                labels = list("NGS_type" = "NGS Type","Tool" = "Tool"),
                                 input_id = "mhci_col_list"
                               ),
                               add_rank_list(
                                 text = HTML("Rows (<i>maximum=2</i>)"),
-                                labels = list("MHC_class" = "MHC Class",
-                                              "IMGTHLA_version" = "IMGTHLA Version"),
+                                labels = list("MHC_class" = "MHC Class","IMGTHLA_version" = "IMGTHLA Version"),
                                 input_id = "mhci_row_list"
                               )
                             )
                           )
                         ),
-                        column(
-                          width = 12,
-                          uiOutput("mhci_warning_message")
+                        column(width = 12, uiOutput("mhci_warning_message")),
+                        column(width = 12,
+                               div(class = "custom-box", style = "overflow-x: auto;",
+                                   pivottablerOutput("mhci_pivot_table"))
                         ),
-                        column(
-                          width = 12,
-                          div(class = "custom-box", style = "overflow-x: auto;", pivottablerOutput("mhci_pivot_table")
-                          )
-                        ),
-                        column(
-                          width = 12,
-                          tags$br(),
-                          conditionalPanel(
-                            condition = "input.mhci_pivottable_button >= 1",
-                            downloadButton(
-                              outputId = "mhci_pivot_download",
-                              label = "Download"
-                            )
-                          )
+                        column(width = 12,
+                               tags$br(),
+                               conditionalPanel(
+                                 condition = "input.mhci_pivottable_button >= 1",
+                                 downloadButton("mhci_pivot_download","Download")
+                               )
                         )
                       )
                     ),
+                    
                     tabPanel(
                       title = "MHC class II",
                       fluidRow(
@@ -184,184 +187,28 @@ tabItem(tabName = "hla",
                               ),
                               add_rank_list(
                                 text = HTML("Columns (<i>maximum=2</i>)"),
-                                labels = list("NGS_type" = "NGS Type", 
-                                              "Tool" = "Tool"),
+                                labels = list("NGS_type" = "NGS Type","Tool" = "Tool"),
                                 input_id = "mhcii_col_list"
                               ),
                               add_rank_list(
                                 text = HTML("Rows (<i>maximum=2</i>)"),
-                                labels = list("MHC_class" = "MHC Class",
-                                              "IMGTHLA_version" = "IMGTHLA Version"),
+                                labels = list("MHC_class" = "MHC Class","IMGTHLA_version" = "IMGTHLA Version"),
                                 input_id = "mhcii_row_list"
                               )
                             )
                           )
                         ),
-                        column(
-                          width = 12,
-                          uiOutput("mhcii_warning_message")
+                        column(width = 12, uiOutput("mhcii_warning_message")),
+                        column(width = 12,
+                               div(class = "custom-box", style = "overflow-x: auto;",
+                                   pivottablerOutput("mhcii_pivot_table"))
                         ),
-                        column(
-                          width = 12,
-                          div(class = "custom-box", style = "overflow-x: auto;", pivottablerOutput("mhcii_pivot_table")
-                          )
-                        ),
-                        column(
-                          width = 12,
-                          tags$br(),
-                          conditionalPanel(
-                            condition = "input.mhcii_pivottable_button >= 1",
-                            downloadButton(
-                              outputId = "mhcii_pivot_download",
-                              label = "Download")
-                          )
-                        )
-                      )
-                    )
-                  )
-                )
-              )
-            )
-          )
-        ),
-        fluidRow(
-          column(
-            width = 12,
-            box(
-              id = "igv_box",
-              height = "auto",
-              width = 12,
-              elevation = 4,
-              title = strong("Integrative Genomics Viewer"),
-              collapsible = TRUE,
-              solidHeader = FALSE,
-              maximizable = TRUE,
-              status = "danger",
-              hidden(
-                textInput("package_value_ui", label = NULL, value = "")
-              ),
-              div(
-                style = "border-left: 4px solid #d9534f; padding: 10px; background-color: #f9f9f9; margin-bottom: 15px;",
-                HTML(
-                  "<p style='font-size: 12px; color: #555; margin: 0;'>
-           <strong>Hint:</strong> Due to the partial integration between IGV and Shiny, 
-           we recommend adjusting the browser window to an appropriate size before using “Display.” 
-           If you encounter any anomalies in the Genome Track, resizing the ShinyHLA window should resolve them.
-           </p>"
-                )
-              ),
-              fluidRow(
-                column(
-                  width = 12,
-                  tabsetPanel(
-                    id = "igv_tabsetPanel",
-                    tabPanel(
-                      title = "Reference: Class I",
-                      fluidRow(
-                        column(
-                          width = 12,
-                          igvShinyOutput('hg38_igv_i', width = "100%", height = "600px")
-                        )
-                      ),
-                      fluidRow(
-                        column(
-                          width = 12,
-                          tags$br(),
-                          div(
-                            style = "display: flex; align-items: center;",
-                            actionButton(
-                              inputId = "hg38_igv_i_bam_button",
-                              label = "Display",
-                              icon = icon("eye"),
-                            ),
-                            div(
-                              style = "margin-left: 10px;",
-                              tooltip(
-                                icon("info-circle"),
-                                title = "Upload BAM files for sequence visualization if available.",
-                                placement = "right"
-                              )
-                            )
-                          )
-                        )
-                      )
-                    ),
-                    tabPanel(
-                      title = "Reference: Class II",
-                      fluidRow(
-                        column(
-                          width = 12,
-                          igvShinyOutput('hg38_igv_ii', width = "100%", height = "600px")
-                        )
-                      ),
-                      fluidRow(
-                        column(
-                          width = 12,
-                          tags$br(),
-                          div(
-                            style = "display: flex; align-items: center;",
-                            actionButton(
-                              inputId = "hg38_igv_ii_bam_button",
-                              label = "Display",
-                              icon = icon("eye"),
-                            ),
-                            div(
-                              style = "margin-left: 10px;",
-                              tooltip(
-                                icon("info-circle"),
-                                title = "Upload BAM files for sequence visualization if available.",
-                                placement = "right"
-                              )
-                            )
-                          )
-                        )
-                      )
-                    ),
-                    tabPanel(
-                      title = "Typing Package Results",
-                      conditionalPanel(
-                        condition = "input.igv_reference >= 1",
-                        fluidRow(
-                          column(
-                            width = 12,
-                            igvShinyOutput("alignment_igv", width = "100%", height = "600px")
-                          )
-                        )
-                      ),
-                      conditionalPanel(
-                        condition = "input.package_value_ui == 'HLA-HD' || input.package_value_ui == 'T1K'",
-                        tags$br(),
-                        fluidRow(
-                          column(
-                            width = 12,
-                            igvShinyOutput("alignment_ii_igv", width = "100%", height = "600px")
-                          )
-                        )
-                      ),
-                      conditionalPanel(
-                        condition = "input.igv_reference >= 1 && input.package_value_ui != 'arcasHLA'" ,
-                        tags$br(),
-                        fluidRow(
-                          column(
-                            width = 12,
-                            div(
-                              style = "display: flex; align-items: center;",
-                              actionButton(
-                                inputId = "igv_bam_button",
-                                label = "Display Alignment File",
-                                icon = icon("eye"),
-                                style = "margin-right: 10px;"  
-                              ),
-                              div(
-                                style = "margin-left: 10px;",
-                                tooltip(
-                                  icon("info-circle"),
-                                  title = "Upload the BAM file from HLA typing after sequence alignment.",
-                                  placement = "right"
-                                )
-                              )
-                            )
-                          )
+                        column(width = 12,
+                               tags$br(),
+                               conditionalPanel(
+                                 condition = "input.mhcii_pivottable_button >= 1",
+                                 downloadButton("mhcii_pivot_download","Download")
+                               )
                         )
                       )
                     )
@@ -371,4 +218,18 @@ tabItem(tabName = "hla",
             )
           )
         )
+        
+        ## ================= IGV BOX REMOVED =================
+        # fluidRow(
+        #   column(
+        #     width = 12,
+        #     box(
+        #       id = "igv_box",
+        #       title = strong("Integrative Genomics Viewer"),
+        #       status = "danger",
+        #       "IGV UI removed for PharmGKB integration experiment"
+        #     )
+        #   )
+        # )
+        
 )

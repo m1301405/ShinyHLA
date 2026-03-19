@@ -8,11 +8,11 @@ library(readr)
 library(htmlwidgets)
 library(waiter)
 library(rvest)
-library(igvShiny)
+#library(igvShiny)
 library(shinyjs)
 library(dplyr)
-library(GenomicAlignments)
-library(rtracklayer)
+#library(GenomicAlignments)
+#library(rtracklayer)
 library(R.utils)
 library(shinyalert)
 library(readxl)
@@ -210,7 +210,7 @@ server <- function(input, output, session) {
   source("Server/4_pivottabler.R",local = TRUE)$value
   
   ## BAM & IGV 
-  source("Server/4_igvshiny.R",local = TRUE)$value
+  # source("Server/4_igvshiny.R",local = TRUE)$value
 
   ## valuebox
   source("Server/4_valuebox.R",local = TRUE)$value
