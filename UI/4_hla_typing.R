@@ -1,5 +1,4 @@
 tabItem(tabName = "hla",
-        
         fluidRow(
           column(
             width = 12,
@@ -34,7 +33,7 @@ tabItem(tabName = "hla",
                     ),
                     div(
                       style = "margin-left: 10px;",
-                      tooltip(
+                      bs4Dash::tooltip(
                         icon("info-circle"),
                         title = "Select sequencing type, HLA reference genome version, and genotyping tool for analysis.",
                         placement = "right"
@@ -63,7 +62,7 @@ tabItem(tabName = "hla",
                         style = "margin-right: 10px;"
                       ),
                       
-                      tooltip(
+                      bs4Dash::tooltip(
                         icon("info-circle"),
                         title = "Use the MHC Class I & II buttons to organize genotyping results into tables.",
                         placement = "right"
@@ -116,7 +115,7 @@ tabItem(tabName = "hla",
                                     label = "Download", 
                                     class = "btn-outline-success"
                                   ),
-                                  tooltip(icon("info-circle"), title = "Save sequences in FASTA format.", placement = "right")
+                                  bs4Dash::tooltip(icon("info-circle"), title = "Save sequences in FASTA format.", placement = "right")
                                 )
                               )
                             )
@@ -217,17 +216,49 @@ tabItem(tabName = "hla",
               )
             )
           )
+        ),
+        fluidRow(
+          uiOutput("pharmgkb_box_ui")
         )
-        
-        ## ================= IGV BOX REMOVED =================
         # fluidRow(
         #   column(
         #     width = 12,
         #     box(
-        #       id = "igv_box",
-        #       title = strong("Integrative Genomics Viewer"),
-        #       status = "danger",
-        #       "IGV UI removed for PharmGKB integration experiment"
+        #       id = "pharmgkb_box",
+        #       height = "auto",
+        #       width = 12,
+        #       elevation = 4,
+        #       title = strong("PharmGKB Database"),
+        #       collapsible = TRUE,
+        #       solidHeader = FALSE,
+        #       maximizable = TRUE,
+        #       status = "warning",
+        #       
+        #       tabsetPanel(
+        #         id = "pharmgkb_tabs",
+        #         type = "tabs",
+        #         
+        #         tabPanel(
+        #           "Summary Annotations",
+        #           tags$br(),
+        #           uiOutput("summary_annotation_overview"),
+        #           reactable::reactableOutput("summary_annotation_tbl")
+        #         ),
+        #         
+        #         tabPanel(
+        #           "Variant Annotations",
+        #           tags$br(),
+        #           uiOutput("variant_annotation_overview"),
+        #           reactable::reactableOutput("variant_annotation_tbl")
+        #         ),
+        #         
+        #         tabPanel(
+        #           "Drug Label Annotations",
+        #           tags$br(),
+        #           uiOutput("druglabel_annotation_overview"),
+        #           reactable::reactableOutput("druglabel_annotation_tbl")
+        #         )
+        #       )
         #     )
         #   )
         # )

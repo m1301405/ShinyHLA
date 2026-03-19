@@ -44,7 +44,7 @@ tabItem(tabName = "upload",
                   inputId = "demo_choice",
                   label = tagList(
                     "Demo File", 
-                    tooltip(
+                    bs4Dash::tooltip(
                       icon("info-circle"),
                       title = "Demo uses HG00096 data: WES (aligned BAM) and RNA-Seq (raw FASTQ) for HLA typing.",
                       placement = "right"
@@ -92,7 +92,7 @@ tabItem(tabName = "upload",
                   ),
                   div(
                     style = "margin-left: 10px;",
-                    tooltip(
+                    bs4Dash::tooltip(
                       icon("info-circle"),
                       title = "Check total depth, coverage, and mean depth per HLA allele to ensure data quality.",
                       placement = "right"
@@ -119,7 +119,7 @@ tabItem(tabName = "upload",
                   ),
                   div(
                     style = "margin-left: 8px;",
-                    tooltip(
+                    bs4Dash::tooltip(
                       icon("exclamation-triangle"),
                       title = "Only the most recently uploaded file is retained for analysis. To re-analyze a previously uploaded file, please re-upload it.",
                       placement = "right")

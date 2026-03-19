@@ -25,14 +25,22 @@ library(knitr)
 library(kableExtra)
 library(formattable) 
 
-## Upload file size limit
-options(shiny.maxRequestSize = 5000 * 1024^2)
+library(reactable) ##
+library(htmltools) ##
+library(ggplot2) ##
 
-## Cascade filter
-HLA_typing <- read_excel("/root/shiny/HLA_package_list.xlsx")
 
-## System CPU
-num_cores <- detectCores() - 1
+# ## Upload file size limit
+# options(shiny.maxRequestSize = 5000 * 1024^2)
+# 
+# ## Cascade filter
+# HLA_typing <- read_excel("/root/shiny/HLA_package_list.xlsx")
+# 
+# ## System CPU
+# num_cores <- detectCores() - 1
+
+source("/root/shiny/R/app_globals.R")
+source("/root/shiny/R/app_helpers.R")
 
 ## UI
 ui <- bs4DashPage(
@@ -154,6 +162,115 @@ ui <- bs4DashPage(
           min-height: 110px !important;
           margin-bottom: 0 !important;
         }
+      "),
+        HTML("
+        /* ================= PharmGKB embedded styles ================= */
+        .summary-card {
+          background: white;
+          border: 1px solid #e5e5e5;
+          border-radius: 12px;
+          padding: 18px 20px;
+          margin-bottom: 18px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        
+        .summary-badge {
+          display: inline-block;
+          padding: 8px 16px;
+          background: #fdecea;
+          color: #b71c1c;
+          border-radius: 18px;
+          font-weight: 700;
+          font-size: 14px;
+        }
+        
+        .mini-card {
+          background: #fafafa;
+          border: 1px solid #eee;
+          border-radius: 10px;
+          padding: 14px;
+          min-width: 180px;
+        }
+        
+        .mini-title {
+          font-size: 12px;
+          color: #777;
+          text-transform: uppercase;
+        }
+        
+        .mini-value {
+          font-size: 26px;
+          font-weight: 700;
+        }
+        
+        .overview-flex {
+          display: flex;
+          flex-wrap: nowrap;
+          gap: 28px;
+          align-items: flex-start;
+        }
+        
+        .overview-left {
+          flex: 0 0 58%;
+          min-width: 0;
+        }
+        
+        .overview-right {
+          flex: 0 0 38%;
+          min-width: 340px;
+        }
+        
+        .overview-metrics {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 14px;
+          margin-bottom: 18px;
+        }
+        
+        @media (max-width: 1100px) {
+          .overview-flex {
+            flex-wrap: wrap;
+          }
+          
+          .overview-left,
+          .overview-right {
+            flex: 0 0 100%;
+            min-width: 100%;
+          }
+          
+          .overview-right {
+            margin-top: 8px;
+          }
+        }
+        
+        @media (max-width: 768px) {
+          .overview-metrics {
+            grid-template-columns: 1fr;
+          }
+        }
+        "),
+        HTML("
+        #pharmgkb_box {
+          width: 100% !important;
+        }
+      
+        #pharmgkb_box .card-body {
+          width: 100% !important;
+        }
+      
+        #pharmgkb_box .tab-content {
+          width: 100% !important;
+        }
+      
+        #pharmgkb_box .tab-pane {
+          width: 100% !important;
+          min-width: 100% !important;
+        }
+      
+        #pharmgkb_box .summary-card {
+          width: 100% !important;
+          box-sizing: border-box;
+        }
       ")
       ),
       tags$script(HTML("
@@ -206,8 +323,11 @@ server <- function(input, output, session) {
   ## package
   source("Server/4_package.R",local = TRUE)$value
   
-  ##pivottabler
+  ## pivottabler
   source("Server/4_pivottabler.R",local = TRUE)$value
+  
+  ## pharmgkb
+  source("Server/4_pharmgkb.R", local = TRUE)$value
   
   ## BAM & IGV 
   # source("Server/4_igvshiny.R",local = TRUE)$value

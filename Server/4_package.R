@@ -217,9 +217,10 @@ observeEvent(input$hla_typing_button, {
       optitype_mhc_table[4, 1] <- if (is.na(optitype[1, 5]) || optitype[1, 5] == "") "" else optitype[1, 5]
       optitype_mhc_table[5, 1] <- if (is.na(optitype[1, 6]) || optitype[1, 6] == "") "" else optitype[1, 6]
       optitype_mhc_table[6, 1] <- if (is.na(optitype[1, 7]) || optitype[1, 7] == "") "" else optitype[1, 7]
-      
+
       optitype_mhc_table <- optitype_mhc_table[order(optitype_mhc_table$Allele), , drop = FALSE]
       optitype_mhc_table <- optitype_mhc_table %>% filter(Allele != "")
+      
       #----------------------------------------------------------
       for (i in 1:nrow(optitype_mhc_table)) {
         imgthla_version <- input$imgthla
@@ -257,35 +258,110 @@ observeEvent(input$hla_typing_button, {
         optitype_mhc_table[i, 3] <- system(cmd, intern = TRUE)
       }
       #----------------------------------------------------------
+      ## 新增 PharmGKB query allele 與按鈕欄位
+      optitype_mhc_table$pharmgkb_allele <- vapply(
+        optitype_mhc_table$Allele,
+        normalize_typing_allele_to_pharmgkb,
+        FUN.VALUE = character(1)
+      )
+      
+      optitype_mhc_table$PharmGKB <- vapply(
+        optitype_mhc_table$pharmgkb_allele,
+        make_pharmgkb_row_button,
+        FUN.VALUE = character(1)
+      )
+      
+      ## 欄位順序：按鈕放在 Allele 旁邊
+      optitype_mhc_table <- optitype_mhc_table[, c(
+        "PharmGKB", "Allele", "nucleotide", "protein", "pharmgkb_allele"
+      )]
+      #----------------------------------------------------------
+      # output$hla_typing_table <- renderDataTable({
+      #   datatable(optitype_mhc_table,
+      #             filter = "top",
+      #             rownames = FALSE,
+      #             selection = "none",
+      #             class = "nowrap",
+      #             options = list(
+      #               pageLength = 8,
+      #               autoWidth = TRUE,
+      #               scrollX = TRUE,
+      #               columnDefs = list(list(
+      #                 width = "100px",
+      #                 targets = "_all",
+      #                 render = JS(
+      #                   "function(data, type, row, meta) {",
+      #                   "return type === 'display' && data != null && data.length > 40 ?",
+      #                   "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
+      #                   "}"
+      #                 )
+      #               ))
+      #             )
+      #   )
+      # })
       output$hla_typing_table <- renderDataTable({
-        datatable(optitype_mhc_table,
-                  filter = "top",
-                  rownames = FALSE,
-                  selection = "none",
-                  class = "nowrap",
-                  options = list(
-                    pageLength = 8,
-                    autoWidth = TRUE,
-                    scrollX = TRUE,
-                    columnDefs = list(list(
-                      width = "100px",
-                      targets = "_all",
-                      render = JS(
-                        "function(data, type, row, meta) {",
-                        "return type === 'display' && data != null && data.length > 40 ?",
-                        "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
-                        "}"
-                      )
-                    ))
-                  )
+        datatable(
+          optitype_mhc_table,
+          filter = "none",
+          rownames = FALSE,
+          selection = "none",
+          escape = FALSE,
+          class = "nowrap",
+          options = list(
+            pageLength = 8,
+            autoWidth = TRUE,
+            scrollX = TRUE,
+            columnDefs = list(
+              list(
+                targets = 0,   ## PharmGKB button 欄
+                orderable = FALSE,
+                searchable = FALSE,
+                width = "110px"
+              ),
+              list(
+                targets = 4,   ## 隱藏內部 query 欄
+                visible = FALSE
+              ),
+              list(
+                width = "100px",
+                targets = c(1, 2, 3),
+                render = JS(
+                  "function(data, type, row, meta) {",
+                  "  if (type === 'display' && data != null && data.length > 30) {",
+                  "    return '<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>';",
+                  "  }",
+                  "  return data;",
+                  "}"
+                )
+              )
+            )
+          )
         )
       })
       #----------------------------------------------------------
+      # sequence_file <- NULL
+      # for (i in 1:nrow(optitype_mhc_table)) {
+      #   nucleotide <- paste(">", optitype_mhc_table[i, 1], "_nucleotide", sep = "")
+      #   protein <- paste(">", optitype_mhc_table[i, 1], "_protein", sep = "")
+      #   seqs <- rbind(rbind(nucleotide, optitype_mhc_table[i, 2]), rbind(protein, optitype_mhc_table[i, 3]))
+      #   sequence_file <- rbind(sequence_file, seqs)
+      # }
       sequence_file <- NULL
-      for (i in 1:nrow(optitype_mhc_table)) {
-        nucleotide <- paste(">", optitype_mhc_table[i, 1], "_nucleotide", sep = "")
-        protein <- paste(">", optitype_mhc_table[i, 1], "_protein", sep = "")
-        seqs <- rbind(rbind(nucleotide, optitype_mhc_table[i, 2]), rbind(protein, optitype_mhc_table[i, 3]))
+      for (i in seq_len(nrow(optitype_mhc_table))) {
+        allele_i <- optitype_mhc_table$Allele[i]
+        nucleotide_i <- optitype_mhc_table$nucleotide[i]
+        protein_i <- optitype_mhc_table$protein[i]
+        
+        nucleotide_header <- paste0(">", allele_i, "_nucleotide")
+        protein_header <- paste0(">", allele_i, "_protein")
+        
+        seqs <- rbind(
+          c(nucleotide_header),
+          c(nucleotide_i),
+          c(protein_header),
+          c(protein_i)
+        )
+        
         sequence_file <- rbind(sequence_file, seqs)
       }
       output_file <- paste("./Output/optitype_", input$sequence, "_", input$imgthla, ".txt", sep = "")
