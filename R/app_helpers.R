@@ -185,14 +185,38 @@ make_literature_links <- function(x) {
   do.call(tagList, out)
 }
 
+clean_quoted_text_block <- function(x) {
+  x <- safe_trim(x)
+  
+  if (length(x) == 0) return(x)
+  
+  out <- vapply(x, function(one) {
+    if (is.na(one) || one == "") return("N/A")
+    
+    one <- gsub("\\s+", " ", one)
+    one <- trimws(one)
+    
+    one <- gsub('"[[:space:]]+"', '"; "', one)
+    one <- gsub('^"(.*)"$', "\\1", one)
+    one <- gsub('";[[:space:]]*"', "; ", one)
+    one <- gsub('^"+|"+$', "", one)
+    one <- trimws(one)
+    
+    one
+  }, FUN.VALUE = character(1))
+  
+  out
+}
+
 ## =====================================================
 ## Drug helpers
 ## =====================================================
 
 normalize_drug_name <- function(x) {
   x <- safe_trim(x)
-  x <- gsub('^"(.*)"$', "\\1", x)   # 去掉外層成對雙引號
-  x <- gsub("\\s+", " ", x)         # 多個空白壓成一個
+  x <- gsub('^"(.*)"$', "\\1", x)
+  x <- gsub("\\s+", " ", x)
+  x <- trimws(x)
   x <- tolower(x)
   x
 }
@@ -216,7 +240,6 @@ split_outside_quotes <- function(x, separators = c(",", ";")) {
       ch <- chars[i]
       
       if (ch == '"') {
-        ## 支援 CSV 風格的 escaped quote: ""
         if (in_quotes && i < length(chars) && chars[i + 1] == '"') {
           buf <- c(buf, '"')
           i <- i + 2
@@ -253,14 +276,25 @@ split_outside_quotes <- function(x, separators = c(",", ";")) {
   }
   
   out_all <- trimws(out_all)
-  out_all <- gsub('^"(.*)"$', "\\1", out_all)  # 去掉 token 外層雙引號
+  out_all <- gsub('^"(.*)"$', "\\1", out_all)
   out_all <- gsub("\\s+", " ", out_all)
   out_all <- out_all[out_all != ""]
-  unique(out_all)
+  out_all
 }
 
 split_drug_names <- function(x) {
   split_outside_quotes(x, separators = c(",", ";"))
+}
+
+split_drug_names_unique <- function(x) {
+  unique(split_drug_names(x))
+}
+
+expand_drug_vector <- function(x) {
+  vals <- split_drug_names(x)
+  vals <- safe_trim(vals)
+  vals <- vals[!is.na(vals) & vals != ""]
+  vals
 }
 
 find_drug_id <- function(drug_name) {
@@ -284,7 +318,7 @@ make_drug_links <- function(drug_string) {
     return("N/A")
   }
   
-  vals <- split_drug_names(drug_string)
+  vals <- split_drug_names_unique(drug_string)
   
   if (length(vals) == 0) {
     return("N/A")
@@ -294,25 +328,35 @@ make_drug_links <- function(drug_string) {
     one <- vals[i]
     drug_id <- find_drug_id(one)
     
-    if (!is.na(drug_id) && drug_id != "") {
-      tagList(
-        tags$a(
-          href = paste0("https://www.clinpgx.org/drug/", drug_id),
-          target = "_blank",
-          rel = "noopener noreferrer",
-          one
-        ),
-        if (i < length(vals)) HTML("; ")
+    link_part <- if (!is.na(drug_id) && drug_id != "") {
+      safe_external_link(
+        href = paste0("https://www.clinpgx.org/drug/", drug_id),
+        label = one
       )
     } else {
-      tagList(
-        one,
-        if (i < length(vals)) HTML("; ")
-      )
+      one
     }
+    
+    tagList(
+      link_part,
+      if (i < length(vals)) HTML("; ")
+    )
   })
   
   do.call(tagList, out)
+}
+
+make_top_drugs_df <- function(x, top_n = 5) {
+  drug_vec <- expand_drug_vector(x)
+  
+  if (length(drug_vec) == 0) {
+    return(data.frame(drug = character(0), n = integer(0), stringsAsFactors = FALSE))
+  }
+  
+  data.frame(drug = drug_vec, stringsAsFactors = FALSE) %>%
+    dplyr::filter(!is.na(drug), drug != "") %>%
+    dplyr::count(drug, sort = TRUE) %>%
+    dplyr::slice_head(n = top_n)
 }
 
 ## =====================================================
@@ -363,34 +407,71 @@ clean_variant_phenotype <- function(x) {
   trimws(x)
 }
 
+# split_clean_variant_phenotypes <- function(x) {
+#   x <- safe_trim(x)
+#   x <- x[!is.na(x) & x != ""]
+#   if (length(x) == 0) return(character(0))
+#   
+#   x <- gsub(",[[:space:]]*Disease:", "; Disease:", x)
+#   x <- gsub(",[[:space:]]*Side Effect:", "; Side Effect:", x)
+#   x <- gsub(",[[:space:]]*Other:", "; Other:", x)
+#   x <- gsub(",[[:space:]]*Efficacy:", "; Efficacy:", x)
+#   x <- gsub(",[[:space:]]*PK:", "; PK:", x)
+#   
+#   vals <- unlist(strsplit(x, ";"))
+#   vals <- trimws(vals)
+#   vals <- vals[vals != ""]
+#   
+#   vals <- gsub("^Side Effect:", "", vals)
+#   vals <- gsub("^Disease:", "", vals)
+#   vals <- gsub("^Other:", "", vals)
+#   vals <- gsub("^Efficacy:", "", vals)
+#   vals <- gsub("^PK:", "", vals)
+#   
+#   vals <- trimws(vals)
+#   vals <- vals[vals != ""]
+#   vals <- unique(vals)
+#   
+#   vals
+# }
 split_clean_variant_phenotypes <- function(x) {
   x <- safe_trim(x)
   x <- x[!is.na(x) & x != ""]
   if (length(x) == 0) return(character(0))
   
-  x <- gsub(",[[:space:]]*Disease:", "; Disease:", x)
-  x <- gsub(",[[:space:]]*Side Effect:", "; Side Effect:", x)
-  x <- gsub(",[[:space:]]*Other:", "; Other:", x)
-  x <- gsub(",[[:space:]]*Efficacy:", "; Efficacy:", x)
-  x <- gsub(",[[:space:]]*PK:", "; PK:", x)
+  ## 將 phenotype category 前面的逗號改成真正分隔符
+  x <- gsub(',[[:space:]]*"?[[:space:]]*Disease:', '; Disease:', x)
+  x <- gsub(',[[:space:]]*"?[[:space:]]*Side Effect:', '; Side Effect:', x)
+  x <- gsub(',[[:space:]]*"?[[:space:]]*Other:', '; Other:', x)
+  x <- gsub(',[[:space:]]*"?[[:space:]]*Efficacy:', '; Efficacy:', x)
+  x <- gsub(',[[:space:]]*"?[[:space:]]*PK:', '; PK:', x)
   
-  vals <- unlist(strsplit(x, ";"))
+  vals <- unlist(strsplit(x, ";", fixed = FALSE))
   vals <- trimws(vals)
   vals <- vals[vals != ""]
   
+  ## 去除前後引號
+  vals <- gsub('^"+|"+$', "", vals)
+  vals <- gsub("^'+|'+$", "", vals)
+  vals <- trimws(vals)
+  
+  ## 去除 prefix
   vals <- gsub("^Side Effect:", "", vals)
   vals <- gsub("^Disease:", "", vals)
   vals <- gsub("^Other:", "", vals)
   vals <- gsub("^Efficacy:", "", vals)
   vals <- gsub("^PK:", "", vals)
   
+  ## 再清一次
+  vals <- gsub('^"+|"+$', "", vals)
+  vals <- gsub("^'+|'+$", "", vals)
   vals <- trimws(vals)
+  
   vals <- vals[vals != ""]
   vals <- unique(vals)
   
   vals
 }
-
 ## =====================================================
 ## Phenotype helpers
 ## =====================================================
@@ -584,6 +665,82 @@ make_pharmgkb_row_button <- function(allele_query) {
         allele_query
       ),
       "Search"
+    )
+  )
+}
+
+prepare_hla_table_for_display <- function(df) {
+  df <- as.data.frame(df, stringsAsFactors = FALSE)
+  
+  ## 若是 reload 舊資料，先把舊的 display 欄位移掉
+  drop_cols <- intersect(c("PharmGKB", "pharmgkb_allele"), colnames(df))
+  if (length(drop_cols) > 0) {
+    df <- df[, setdiff(colnames(df), drop_cols), drop = FALSE]
+  }
+  
+  ## 只接受乾淨的核心欄位
+  core_cols <- c("Allele", "nucleotide", "protein")
+  df <- df[, intersect(core_cols, colnames(df)), drop = FALSE]
+  
+  ## 補 display 用欄位
+  df$pharmgkb_allele <- vapply(
+    df$Allele,
+    normalize_typing_allele_to_pharmgkb,
+    FUN.VALUE = character(1)
+  )
+  
+  df$PharmGKB <- vapply(
+    df$pharmgkb_allele,
+    make_pharmgkb_row_button,
+    FUN.VALUE = character(1)
+  )
+  
+  ## 欄位順序
+  df <- df[, c("PharmGKB", "Allele", "nucleotide", "protein", "pharmgkb_allele"), drop = FALSE]
+  
+  df
+}
+
+
+render_hla_typing_datatable <- function(df) {
+  df_display <- prepare_hla_table_for_display(df)
+  
+  DT::datatable(
+    df_display,
+    filter = "none",
+    rownames = FALSE,
+    selection = "none",
+    escape = FALSE,
+    class = "nowrap",
+    options = list(
+      pageLength = 8,
+      autoWidth = TRUE,
+      scrollX = TRUE,
+      columnDefs = list(
+        list(
+          targets = 0,
+          orderable = FALSE,
+          searchable = FALSE,
+          width = "110px"
+        ),
+        list(
+          targets = 4,
+          visible = FALSE,
+          searchable = FALSE
+        ),
+        list(
+          width = "100px",
+          targets = c(1, 2, 3),
+          render = JS(
+            "function(data, type, row, meta) {",
+            "  if (type === 'display' && data != null && data.length > 25) {",
+            "    return '<span title=\"' + data + '\">' + data.substr(0, 25) + '...</span>';",
+            "  }",
+            "  return data;",
+            "}"
+          )
+        )
+      )
     )
   )
 }

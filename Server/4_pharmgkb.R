@@ -36,10 +36,10 @@ output$summary_annotation_overview <- renderUI({
   drugs_txt <- collapse_pretty(sdat$drugs)
   pheno_txt <- collapse_pretty(sdat$phenotypes)
   
-  drug_vec <- split_drug_names(sdat$drugs)
   total_summary <- length(unique(sdat$summary_annotation_id))
-  total_drugs <- length(unique(drug_vec))
   total_pmids <- length(unique(split_clean_unique(sdat$aggregated_evidence_pmids)))
+  drug_vec <- expand_drug_vector(sdat$drugs)
+  total_drugs <- length(unique(drug_vec))
   
   ext_url <- make_summary_search_url(allele)
   
@@ -361,23 +361,16 @@ output$variant_annotation_overview <- renderUI({
     )
   }
   
-  drug_vec  <- split_drug_names(vdat$drugs)
-  lit_chr   <- safe_trim(vdat$pmid)
+  drug_vec <- expand_drug_vector(vdat$drugs)
+  lit_chr <- safe_trim(vdat$pmid)
   pheno_vec <- split_clean_variant_phenotypes(vdat$phenotype)
-  pop_chr   <- safe_trim(vdat$biogeographical_groups)
+  pop_chr <- safe_trim(vdat$biogeographical_groups)
   
-  total_var   <- length(unique(vdat$variant_annotation_id))
+  total_var <- length(unique(vdat$variant_annotation_id))
   total_drugs <- length(unique(drug_vec))
   total_pmids <- length(unique(split_clean_unique(lit_chr)))
   
-  top_drugs_df <- if (length(drug_vec) == 0) {
-    data.frame(drug = character(0), n = integer(0), stringsAsFactors = FALSE)
-  } else {
-    data.frame(drug = drug_vec, stringsAsFactors = FALSE) %>%
-      dplyr::filter(!is.na(drug), drug != "") %>%
-      dplyr::count(drug, sort = TRUE) %>%
-      dplyr::slice_head(n = 5)
-  }
+  top_drugs_df <- make_top_drugs_df(vdat$drugs, top_n = 5)
   
   top_drugs_text <- if (nrow(top_drugs_df) == 0) {
     "N/A"
@@ -501,9 +494,8 @@ output$variant_annotation_tbl <- reactable::renderReactable({
       grepl("Pediatric", safe_trim(vdat$specialty_population), ignore.case = TRUE),
       "TRUE", "FALSE"
     ),
-    
     association             = as.character(vdat$sentence),
-    notes                   = as.character(vdat$notes),
+    notes                   = clean_quoted_text_block(as.character(vdat$notes)),
     specialty_population    = as.character(vdat$specialty_population),
     biogeographical_groups  = as.character(vdat$biogeographical_groups),
     study_types             = as.character(vdat$study_types),
@@ -525,23 +517,22 @@ output$variant_annotation_tbl <- reactable::renderReactable({
   
   keep_df$p_value <- clean_pvalue_text(keep_df$p_value)
   
-  keep_df <- keep_df %>%
-    dplyr::select(
-      detail_url,
-      variant,
-      literature,
-      drugs,
-      significance_simple,
-      p_value,
-      cases,
-      controls,
-      phenotype_category,
-      pediatric,
-      everything()
-    )
+  display_df <- keep_df[, c(
+    "detail_url",
+    "variant",
+    "literature",
+    "drugs",
+    "significance_simple",
+    "p_value",
+    "cases",
+    "controls",
+    "phenotype_category",
+    "pediatric"
+  ), drop = FALSE]
   
   reactable::reactable(
-    keep_df,
+    data = display_df,
+    rownames = FALSE,
     searchable = FALSE,
     filterable = FALSE,
     striped = TRUE,
@@ -610,20 +601,7 @@ output$variant_annotation_tbl <- reactable::renderReactable({
       pediatric = reactable::colDef(
         name = "Pediatric",
         minWidth = 90
-      ),
-      
-      variant_annotation_id = reactable::colDef(show = FALSE),
-      association = reactable::colDef(show = FALSE),
-      notes = reactable::colDef(show = FALSE),
-      specialty_population = reactable::colDef(show = FALSE),
-      biogeographical_groups = reactable::colDef(show = FALSE),
-      study_types = reactable::colDef(show = FALSE),
-      study_ratio_stat_types = reactable::colDef(show = FALSE),
-      study_ratio_stats = reactable::colDef(show = FALSE),
-      study_ci_start = reactable::colDef(show = FALSE),
-      study_ci_stop = reactable::colDef(show = FALSE),
-      comparison_genotype = reactable::colDef(show = FALSE),
-      significance = reactable::colDef(show = FALSE)
+      )
     ),
     
     details = function(index) {
@@ -638,15 +616,30 @@ output$variant_annotation_tbl <- reactable::renderReactable({
         tags$hr(),
         
         h5("Additional Context"),
-        p(tags$b("More details: "), ifelse(is.na(row$notes) || row$notes == "", "N/A", row$notes)),
-        p(tags$b("Biogeographical groups: "), ifelse(is.na(row$biogeographical_groups) || row$biogeographical_groups == "", "N/A", row$biogeographical_groups)),
-        p(tags$b("Specialty population: "), ifelse(is.na(row$specialty_population) || row$specialty_population == "", "N/A", row$specialty_population)),
-        p(tags$b("Comparison allele(s) / genotype(s): "), ifelse(is.na(row$comparison_genotype) || row$comparison_genotype == "", "N/A", row$comparison_genotype)),
+        p(
+          tags$b("More details: "),
+          ifelse(is.na(row$notes) || row$notes == "", "N/A", row$notes)
+        ),
+        p(
+          tags$b("Biogeographical groups: "),
+          ifelse(is.na(row$biogeographical_groups) || row$biogeographical_groups == "", "N/A", row$biogeographical_groups)
+        ),
+        p(
+          tags$b("Specialty population: "),
+          ifelse(is.na(row$specialty_population) || row$specialty_population == "", "N/A", row$specialty_population)
+        ),
+        p(
+          tags$b("Comparison allele(s) / genotype(s): "),
+          ifelse(is.na(row$comparison_genotype) || row$comparison_genotype == "", "N/A", row$comparison_genotype)
+        ),
         
         tags$hr(),
         
         h5("Study Information"),
-        p(tags$b("Study type: "), ifelse(is.na(row$study_types) || row$study_types == "", "N/A", row$study_types)),
+        p(
+          tags$b("Study type: "),
+          ifelse(is.na(row$study_types) || row$study_types == "", "N/A", row$study_types)
+        ),
         p(
           tags$b("Ratio statistic: "),
           paste0(
@@ -666,6 +659,7 @@ output$variant_annotation_tbl <- reactable::renderReactable({
       )
     }
   )
+  
 })
 
 output$variant_annotation_plot <- renderPlot({
@@ -683,14 +677,7 @@ output$variant_annotation_plot <- renderPlot({
   
   vdat <- unique(vdat)
   
-  drug_vec <- safe_trim(vdat$drugs)
-  drug_vec <- drug_vec[!is.na(drug_vec) & drug_vec != ""]
-  
-  if (length(drug_vec) == 0) return(NULL)
-  
-  plot_df <- data.frame(drug = drug_vec, stringsAsFactors = FALSE) %>%
-    dplyr::count(drug, sort = TRUE) %>%
-    dplyr::slice_head(n = 5)
+  plot_df <- make_top_drugs_df(vdat$drugs, top_n = 5)
   
   if (nrow(plot_df) == 0) return(NULL)
   
@@ -746,20 +733,13 @@ output$druglabel_annotation_overview <- renderUI({
   
   ddat$match_scope <- ifelse(trimws(ddat$search_tag) == trimws(allele), "Allele-level", "Gene-level")
   
-  drug_vec <- split_drug_names(ddat$Chemicals)
+  drug_vec <- expand_drug_vector(ddat$Chemicals)
   
   total_records <- length(unique(ddat$`PharmGKB ID`))
-  total_drugs   <- length(unique(drug_vec))
+  total_drugs <- length(unique(drug_vec))
   total_allele_level <- sum(ddat$match_scope == "Allele-level", na.rm = TRUE)
   
-  top_drugs_df <- if (length(drug_vec) == 0) {
-    data.frame(drug = character(0), n = integer(0), stringsAsFactors = FALSE)
-  } else {
-    data.frame(drug = drug_vec, stringsAsFactors = FALSE) %>%
-      dplyr::filter(!is.na(drug), drug != "") %>%
-      dplyr::count(drug, sort = TRUE) %>%
-      dplyr::slice_head(n = 5)
-  }
+  top_drugs_df <- make_top_drugs_df(ddat$Chemicals, top_n = 5)
   
   top_drugs_text <- if (nrow(top_drugs_df) == 0) {
     "N/A"

@@ -111,6 +111,13 @@ observeEvent(input$jobid_load_button, {
   
   loaded_data <- readRDS(target_rds)
   
+  ## 舊版 result_data.rds 可能已經混入 display 欄位，先清掉
+  if (!is.null(loaded_data$table)) {
+    drop_cols <- intersect(c("PharmGKB", "pharmgkb_allele"), colnames(loaded_data$table))
+    if (length(drop_cols) > 0) {
+      loaded_data$table <- loaded_data$table[, setdiff(colnames(loaded_data$table), drop_cols), drop = FALSE]
+    }
+  }  
   # ------------------------------------------------------------
   # Reload ZIP resolution (canonical first)
   # ------------------------------------------------------------
@@ -155,28 +162,7 @@ observeEvent(input$jobid_load_button, {
   # UI: table
   # ------------------------------------------------------------
   output$hla_typing_table <- renderDataTable({
-    datatable(
-      loaded_data$table,
-      filter = "top",
-      rownames = FALSE,
-      selection = "none",
-      class = "nowrap",
-      options = list(
-        pageLength = 8,
-        autoWidth = TRUE,
-        scrollX = TRUE,
-        columnDefs = list(list(
-          width = "100px",
-          targets = "_all",
-          render = JS(
-            "function(data, type, row, meta) {",
-            "return type === 'display' && data != null && data.length > 40 ?",
-            "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
-            "}"
-          )
-        ))
-      )
-    )
+    render_hla_typing_datatable(loaded_data$table)
   })
   
   # UI: summary

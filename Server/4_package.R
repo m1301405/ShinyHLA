@@ -258,23 +258,8 @@ observeEvent(input$hla_typing_button, {
         optitype_mhc_table[i, 3] <- system(cmd, intern = TRUE)
       }
       #----------------------------------------------------------
-      ## 新增 PharmGKB query allele 與按鈕欄位
-      optitype_mhc_table$pharmgkb_allele <- vapply(
-        optitype_mhc_table$Allele,
-        normalize_typing_allele_to_pharmgkb,
-        FUN.VALUE = character(1)
-      )
-      
-      optitype_mhc_table$PharmGKB <- vapply(
-        optitype_mhc_table$pharmgkb_allele,
-        make_pharmgkb_row_button,
-        FUN.VALUE = character(1)
-      )
-      
-      ## 欄位順序：按鈕放在 Allele 旁邊
-      optitype_mhc_table <- optitype_mhc_table[, c(
-        "PharmGKB", "Allele", "nucleotide", "protein", "pharmgkb_allele"
-      )]
+      optitype_mhc_table <- optitype_mhc_table[order(optitype_mhc_table$Allele), , drop = FALSE]
+      optitype_mhc_table <- optitype_mhc_table %>% filter(Allele != "")
       #----------------------------------------------------------
       # output$hla_typing_table <- renderDataTable({
       #   datatable(optitype_mhc_table,
@@ -300,43 +285,7 @@ observeEvent(input$hla_typing_button, {
       #   )
       # })
       output$hla_typing_table <- renderDataTable({
-        datatable(
-          optitype_mhc_table,
-          filter = "none",
-          rownames = FALSE,
-          selection = "none",
-          escape = FALSE,
-          class = "nowrap",
-          options = list(
-            pageLength = 8,
-            autoWidth = TRUE,
-            scrollX = TRUE,
-            columnDefs = list(
-              list(
-                targets = 0,   ## PharmGKB button 欄
-                orderable = FALSE,
-                searchable = FALSE,
-                width = "110px"
-              ),
-              list(
-                targets = 4,   ## 隱藏內部 query 欄
-                visible = FALSE
-              ),
-              list(
-                width = "100px",
-                targets = c(1, 2, 3),
-                render = JS(
-                  "function(data, type, row, meta) {",
-                  "  if (type === 'display' && data != null && data.length > 30) {",
-                  "    return '<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>';",
-                  "  }",
-                  "  return data;",
-                  "}"
-                )
-              )
-            )
-          )
-        )
+        render_hla_typing_datatable(optitype_mhc_table)
       })
       #----------------------------------------------------------
       # sequence_file <- NULL
@@ -601,40 +550,83 @@ observeEvent(input$hla_typing_button, {
           arcashla_mhc_table[i, 3] <- result
         }
       }
+      #---------------------------------------------------------- sorting
+      arcashla_mhc_table <- arcashla_mhc_table[order(arcashla_mhc_table$Allele), , drop = FALSE]
+      arcashla_mhc_table <- arcashla_mhc_table[, c("Allele", "nucleotide", "protein"), drop = FALSE]
       #----------------------------------------------------------
+      # output$hla_typing_table <- renderDataTable({
+      #   datatable(
+      #     arcashla_mhc_table,
+      #     filter = "none",
+      #     rownames = FALSE,
+      #     selection = "none",
+      #     escape = FALSE,
+      #     class = "nowrap",
+      #     options = list(
+      #       pageLength = 8,
+      #       autoWidth = TRUE,
+      #       scrollX = TRUE,
+      #       columnDefs = list(
+      #         list(
+      #           targets = 0,   ## PharmGKB button 欄
+      #           orderable = FALSE,
+      #           searchable = FALSE,
+      #           width = "110px"
+      #         ),
+      #         list(
+      #           targets = 4,   ## 隱藏內部 query 欄
+      #           visible = FALSE
+      #         ),
+      #         list(
+      #           width = "100px",
+      #           targets = c(1, 2, 3),
+      #           render = JS(
+      #             "function(data, type, row, meta) {",
+      #             "  if (type === 'display' && data != null && data.length > 40) {",
+      #             "    return '<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>';",
+      #             "  }",
+      #             "  return data;",
+      #             "}"
+      #           )
+      #         )
+      #       )
+      #     )
+      #   )
+      # })
       output$hla_typing_table <- renderDataTable({
-        datatable(arcashla_mhc_table,
-                  filter = "top",
-                  rownames = FALSE,
-                  selection = "none",
-                  class = "nowrap",
-                  options = list(
-                    pageLength = 8,
-                    autoWidth = TRUE,
-                    scrollX = TRUE,
-                    columnDefs = list(list(
-                      width = "100px",
-                      targets = "_all",
-                      render = JS(
-                        "function(data, type, row, meta) {",
-                        "return type === 'display' && data != null && data.length > 40 ?",
-                        "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
-                        "}"
-                      )
-                    ))
-                  )
-        )
+        render_hla_typing_datatable(arcashla_mhc_table)
       })
       #----------------------------------------------------------
       sequence_file <- NULL
-      for (i in 1:nrow(arcashla_mhc_table)) {
-        nucleotide <- paste(">", arcashla_mhc_table[i, 1], "_nucleotide", sep = "")
-        protein <- paste(">", arcashla_mhc_table[i, 1], "_protein", sep = "")
-        seqs <- rbind(rbind(nucleotide, arcashla_mhc_table[i, 2]), rbind(protein, arcashla_mhc_table[i, 3]))
+      for (i in seq_len(nrow(arcashla_mhc_table))) {
+        allele_i <- arcashla_mhc_table$Allele[i]
+        nucleotide_i <- arcashla_mhc_table$nucleotide[i]
+        protein_i <- arcashla_mhc_table$protein[i]
+        
+        nucleotide_header <- paste0(">", allele_i, "_nucleotide")
+        protein_header <- paste0(">", allele_i, "_protein")
+        
+        seqs <- rbind(
+          c(nucleotide_header),
+          c(nucleotide_i),
+          c(protein_header),
+          c(protein_i)
+        )
+        
         sequence_file <- rbind(sequence_file, seqs)
       }
       output_file <- paste("./Output/arcashla_", input$sequence, "_", input$imgthla, ".txt", sep = "")
       write(sequence_file, file = output_file)
+      #----------------------------------------------------------
+      # sequence_file <- NULL
+      # for (i in 1:nrow(arcashla_mhc_table)) {
+      #   nucleotide <- paste(">", arcashla_mhc_table[i, 1], "_nucleotide", sep = "")
+      #   protein <- paste(">", arcashla_mhc_table[i, 1], "_protein", sep = "")
+      #   seqs <- rbind(rbind(nucleotide, arcashla_mhc_table[i, 2]), rbind(protein, arcashla_mhc_table[i, 3]))
+      #   sequence_file <- rbind(sequence_file, seqs)
+      # }
+      # output_file <- paste("./Output/arcashla_", input$sequence, "_", input$imgthla, ".txt", sep = "")
+      # write(sequence_file, file = output_file)
       #----------------------------------------------------------
       zip_folder_pathway <- file.path(WORK_ROOT, "Download", paste0("arcashla_", input$sequence, "_", input$imgthla, "_zip"))
       dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
@@ -1017,39 +1009,64 @@ observeEvent(input$hla_typing_button, {
         }
       }
       #----------------------------------------------------------
+      hlahd_mhc_table <- hlahd_mhc_table[, c("Allele", "nucleotide", "protein"), drop = FALSE]
+      #----------------------------------------------------------
       output$hla_typing_table <- renderDataTable({
-        datatable(hlahd_mhc_table,
-                  filter = "top",
-                  rownames = FALSE,
-                  selection = "none",
-                  class = "nowrap",
-                  options = list(
-                    pageLength = 8,
-                    autoWidth = TRUE,
-                    scrollX = TRUE,
-                    columnDefs = list(list(
-                      targets = "_all",
-                      width = "100px",
-                      render = JS(
-                        "function(data, type, row, meta) {",
-                        "return type === 'display' && data != null && data.length > 40 ?",
-                        "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
-                        "}"
-                      )
-                    ))
-                  )
-        )
+        render_hla_typing_datatable(hlahd_mhc_table)
       })
+      # output$hla_typing_table <- renderDataTable({
+      #   datatable(hlahd_mhc_table,
+      #             filter = "top",
+      #             rownames = FALSE,
+      #             selection = "none",
+      #             class = "nowrap",
+      #             options = list(
+      #               pageLength = 8,
+      #               autoWidth = TRUE,
+      #               scrollX = TRUE,
+      #               columnDefs = list(list(
+      #                 targets = "_all",
+      #                 width = "100px",
+      #                 render = JS(
+      #                   "function(data, type, row, meta) {",
+      #                   "return type === 'display' && data != null && data.length > 40 ?",
+      #                   "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
+      #                   "}"
+      #                 )
+      #               ))
+      #             )
+      #   )
+      # })
       #----------------------------------------------------------
       sequence_file <- NULL
-      for (i in 1:nrow(hlahd_mhc_table)) {
-        nucleotide <- paste(">", hlahd_mhc_table[i, 1], "_nucleotide", sep = "")
-        protein <- paste(">", hlahd_mhc_table[i, 1], "_protein", sep = "")
-        seqs <- rbind(rbind(nucleotide, hlahd_mhc_table[i, 2]), rbind(protein, hlahd_mhc_table[i, 3]))
+      for (i in seq_len(nrow(hlahd_mhc_table))) {
+        allele_i <- hlahd_mhc_table$Allele[i]
+        nucleotide_i <- hlahd_mhc_table$nucleotide[i]
+        protein_i <- hlahd_mhc_table$protein[i]
+        
+        nucleotide_header <- paste0(">", allele_i, "_nucleotide")
+        protein_header <- paste0(">", allele_i, "_protein")
+        
+        seqs <- rbind(
+          c(nucleotide_header),
+          c(nucleotide_i),
+          c(protein_header),
+          c(protein_i)
+        )
+        
         sequence_file <- rbind(sequence_file, seqs)
       }
       output_file <- paste("./Output/hlahd_", input$sequence, "_", input$imgthla, ".txt", sep = "")
       write(sequence_file, file = output_file)
+      # sequence_file <- NULL
+      # for (i in 1:nrow(hlahd_mhc_table)) {
+      #   nucleotide <- paste(">", hlahd_mhc_table[i, 1], "_nucleotide", sep = "")
+      #   protein <- paste(">", hlahd_mhc_table[i, 1], "_protein", sep = "")
+      #   seqs <- rbind(rbind(nucleotide, hlahd_mhc_table[i, 2]), rbind(protein, hlahd_mhc_table[i, 3]))
+      #   sequence_file <- rbind(sequence_file, seqs)
+      # }
+      # output_file <- paste("./Output/hlahd_", input$sequence, "_", input$imgthla, ".txt", sep = "")
+      # write(sequence_file, file = output_file)
       #----------------------------------------------------------
       zip_folder_pathway <- file.path(WORK_ROOT, "Download", paste0("hlahd_", input$sequence, "_", input$imgthla, "_zip"))
       dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
@@ -1281,45 +1298,72 @@ observeEvent(input$hla_typing_button, {
       }
     }
     #----------------------------------------------------------
+    ## 保持 table 內容乾淨，只保留核心欄位
+    t1k_mhc_table <- t1k_mhc_table[, c("Allele", "nucleotide", "protein"), drop = FALSE]
+    #----------------------------------------------------------
     output$hla_typing_table <- renderDataTable({
-      datatable(t1k_mhc_table,
-                filter = "top",
-                rownames = FALSE,
-                selection = "none",
-                class = "nowrap",
-                options = list(
-                  pageLength = 8,
-                  autoWidth = TRUE,
-                  scrollX = TRUE,
-                  columnDefs = list(list(
-                    width = "100px",
-                    targets = "_all",
-                    render = JS(
-                      "function(data, type, row, meta) {",
-                      "return type === 'display' && data != null && data.length > 40 ?",
-                      "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
-                      "}"
-                    )
-                  ))
-                )
-      )
+      render_hla_typing_datatable(t1k_mhc_table)
     })
+    # output$hla_typing_table <- renderDataTable({
+    #   datatable(t1k_mhc_table,
+    #             filter = "top",
+    #             rownames = FALSE,
+    #             selection = "none",
+    #             class = "nowrap",
+    #             options = list(
+    #               pageLength = 8,
+    #               autoWidth = TRUE,
+    #               scrollX = TRUE,
+    #               columnDefs = list(list(
+    #                 width = "100px",
+    #                 targets = "_all",
+    #                 render = JS(
+    #                   "function(data, type, row, meta) {",
+    #                   "return type === 'display' && data != null && data.length > 40 ?",
+    #                   "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
+    #                   "}"
+    #                 )
+    #               ))
+    #             )
+    #   )
+    # })
     #----------------------------------------------------------
     sequence_file <- NULL
     
-    for (i in 1:nrow(t1k_mhc_table)) {
-      seq <- t1k_mhc_table[i, "Allele"]
-      nuc <- t1k_mhc_table[i, "nucleotide"]
-      prot <- t1k_mhc_table[i, "protein"]
+    for (i in seq_len(nrow(t1k_mhc_table))) {
+      allele_i <- t1k_mhc_table$Allele[i]
+      nucleotide_i <- t1k_mhc_table$nucleotide[i]
+      protein_i <- t1k_mhc_table$protein[i]
       
-      short_seq <- sub("^HLA-", "", seq)
+      short_allele_i <- sub("^HLA-", "", allele_i)
       
-      nucleotide_header <- paste0(">", short_seq, "_nucleotide")
-      protein_header <- paste0(">", short_seq, "_protein")
+      nucleotide_header <- paste0(">", short_allele_i, "_nucleotide")
+      protein_header <- paste0(">", short_allele_i, "_protein")
       
-      seqs <- rbind(c(nucleotide_header), c(nuc), c(protein_header), c(prot))
+      seqs <- rbind(
+        c(nucleotide_header),
+        c(nucleotide_i),
+        c(protein_header),
+        c(protein_i)
+      )
+      
       sequence_file <- rbind(sequence_file, seqs)
     }
+    # sequence_file <- NULL
+    # 
+    # for (i in 1:nrow(t1k_mhc_table)) {
+    #   seq <- t1k_mhc_table[i, "Allele"]
+    #   nuc <- t1k_mhc_table[i, "nucleotide"]
+    #   prot <- t1k_mhc_table[i, "protein"]
+    #   
+    #   short_seq <- sub("^HLA-", "", seq)
+    #   
+    #   nucleotide_header <- paste0(">", short_seq, "_nucleotide")
+    #   protein_header <- paste0(">", short_seq, "_protein")
+    #   
+    #   seqs <- rbind(c(nucleotide_header), c(nuc), c(protein_header), c(prot))
+    #   sequence_file <- rbind(sequence_file, seqs)
+    # }
     
     output_file <- file.path(WORK_ROOT, "Output", paste0("t1k_", input$sequence, "_", input$imgthla, ".txt"))
     write(sequence_file, file = output_file)
