@@ -7,7 +7,7 @@
 options(shiny.maxRequestSize = 5000 * 1024^2)
 
 ## System CPU
-num_cores <- parallel::detectCores() - 1
+num_cores <- min(parallel::detectCores(), 8)
 
 ## Cascade filter
 HLA_typing <- readxl::read_excel("/root/shiny/HLA_package_list.xlsx")
