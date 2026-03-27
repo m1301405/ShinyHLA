@@ -46,7 +46,6 @@ observeEvent(input$hla_typing_button, {
   #----------------------------------------------------------
   dir.create("./Output", showWarnings = FALSE)
   dir.create("./Download", showWarnings = FALSE)
-  # dir.create("./IGV", showWarnings = FALSE)
   #----------------------------------------------------------
   if (input$package == "OptiType") {
     if (dir.exists("./Output/optitype")) {
@@ -59,108 +58,6 @@ observeEvent(input$hla_typing_button, {
     } else if (input$sequence == "RNA-seq") {
       system("OptiTypePipeline.py -i ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -r -p sample -o ./Output/optitype")
     }
-    #----------------------------------------------------------
-    # if (dir.exists("./IGV/optitype")) {
-    #   unlink("./IGV/optitype", recursive = TRUE)
-    # }
-    # dir.create("./IGV/optitype", showWarnings = FALSE)
-    #----------------------------------------------------------
-    # # --- Merge alignment files ---
-    # # Sort _1.bam files if they exist
-    # bam1_files <- Sys.glob("./Output/optitype/*_1.bam")
-    # if (length(bam1_files) > 0) {
-    #   sort_cmd1 <- "samtools sort -T ./IGV/optitype/temp_1 -o ./IGV/optitype/optitype_1_sorted.bam ./Output/optitype/*_1.bam"
-    #   system(sort_cmd1)
-    # } else {
-    #   message("[Warning] No *_1.bam files found. Skipping sort for *_1.bam.")
-    # }
-    # 
-    # # Sort _2.bam files if they exist
-    # bam2_files <- Sys.glob("./Output/optitype/*_2.bam")
-    # if (length(bam2_files) > 0) {
-    #   sort_cmd2 <- "samtools sort -T ./IGV/optitype/temp_2 -o ./IGV/optitype/optitype_2_sorted.bam ./Output/optitype/*_2.bam"
-    #   system(sort_cmd2)
-    # } else {
-    #   message("[Warning] No *_2.bam files found. Skipping sort for *_2.bam.")
-    # }
-    # 
-    # # Merge sorted BAM files if both exist
-    # sorted_bam1 <- "./IGV/optitype/optitype_1_sorted.bam"
-    # sorted_bam2 <- "./IGV/optitype/optitype_2_sorted.bam"
-    # if (file.exists(sorted_bam1) && file.exists(sorted_bam2)) {
-    #   merge_cmd <- paste("samtools merge ./IGV/optitype/optitype_merge.bam", sorted_bam1, sorted_bam2)
-    #   system(merge_cmd)
-    # } else {
-    #   message("[Warning] One or both sorted BAM files are missing. Merge not executed.")
-    # }
-    # 
-    # # Remove intermediate files (only remove if they exist)
-    # if (length(bam1_files) > 0) file.remove(bam1_files)
-    # if (length(bam2_files) > 0) file.remove(bam2_files)
-    # if (file.exists(sorted_bam1)) file.remove(sorted_bam1)
-    # if (file.exists(sorted_bam2)) file.remove(sorted_bam2)
-    # 
-    # # --- Extract the "main sequence" from the alignment file ---
-    # 
-    # merged_bam <- "./IGV/optitype/optitype_merge.bam"
-    # merged_sam <- "./IGV/optitype/optitype_merge.sam"
-    # if (file.exists(merged_bam)) {
-    #   view_cmd <- paste("samtools view -h", merged_bam, "> ./IGV/optitype/optitype_merge.sam")
-    #   system(view_cmd)
-    # } else {
-    #   message("[Warning] Merged BAM file does not exist. Cannot convert to SAM.")
-    # }
-    # 
-    # filtered_sam <- "./IGV/optitype/optitype_merge_filtered.sam"
-    # if (file.exists(merged_sam)) {
-    #   awk_cmd <- paste("awk '$2 == 0 || $1 ~ /^@/'", merged_sam, "> ./IGV/optitype/optitype_merge_filtered.sam")
-    #   system(awk_cmd)
-    # } else {
-    #   message("[Warning] SAM file not found. Skipping filtering step.")
-    # }
-    # 
-    # filtered_bam <- "./IGV/optitype/optitype_merge_filtered.bam"
-    # if (file.exists(filtered_sam)) {
-    #   conv_cmd <- paste("samtools view -Sb", filtered_sam, "> ./IGV/optitype/optitype_merge_filtered.bam")
-    #   system(conv_cmd)
-    # } else {
-    #   message("[Warning] Filtered SAM file not found. Cannot convert to BAM.")
-    # }
-    # 
-    # if (file.exists(merged_bam)) file.remove(merged_bam)
-    # if (file.exists(merged_sam)) file.remove(merged_sam)
-    # if (file.exists(filtered_sam)) file.remove(filtered_sam)
-    # 
-    # # --- Extract data based on the matched reference ---
-    # 
-    # # Choose the reference FASTA file based on input$sequence
-    # if (input$sequence == "WES") {
-    #   reference_fasta <- "/root/miniconda3/envs/optitype/share/optitype-1.3.2-3/data/hla_reference_dna.fasta"
-    # } else {
-    #   reference_fasta <- "/root/miniconda3/envs/optitype/share/optitype-1.3.2-3/data/hla_reference_rna.fasta"
-    # }
-    # 
-    # input_bam <- file.path(getwd(), "IGV/optitype/optitype_merge_filtered.bam")
-    # igv_fasta <- file.path(getwd(), "IGV/optitype/optitype_hla_reference_igv.fasta")
-    # 
-    # # Execute the Python script if the input BAM exists
-    # if (file.exists(input_bam)) {
-    #   py_cmd <- paste(
-    #     "python /root/shiny/Server/optitype_igv_genome.py",
-    #     input_bam, reference_fasta, igv_fasta
-    #   )
-    #   system(py_cmd)
-    # } else {
-    #   message("[Warning] Input BAM file does not exist. Python script not executed.")
-    # }
-    # 
-    # # Create an index of the reference FASTA if it exists
-    # if (file.exists(igv_fasta)) {
-    #   index_cmd <- paste("samtools faidx", igv_fasta)
-    #   system(index_cmd)
-    # } else {
-    #   message("[Warning] IGV FASTA file does not exist. Cannot create index.")
-    # }
     #----------------------------------------------------------
     optitype <- read.table(file = "./Output/optitype/sample_result.tsv", sep = "\t", header = TRUE)
     # whether the dataframe is empty
@@ -261,40 +158,10 @@ observeEvent(input$hla_typing_button, {
       optitype_mhc_table <- optitype_mhc_table[order(optitype_mhc_table$Allele), , drop = FALSE]
       optitype_mhc_table <- optitype_mhc_table %>% filter(Allele != "")
       #----------------------------------------------------------
-      # output$hla_typing_table <- renderDataTable({
-      #   datatable(optitype_mhc_table,
-      #             filter = "top",
-      #             rownames = FALSE,
-      #             selection = "none",
-      #             class = "nowrap",
-      #             options = list(
-      #               pageLength = 8,
-      #               autoWidth = TRUE,
-      #               scrollX = TRUE,
-      #               columnDefs = list(list(
-      #                 width = "100px",
-      #                 targets = "_all",
-      #                 render = JS(
-      #                   "function(data, type, row, meta) {",
-      #                   "return type === 'display' && data != null && data.length > 40 ?",
-      #                   "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
-      #                   "}"
-      #                 )
-      #               ))
-      #             )
-      #   )
-      # })
       output$hla_typing_table <- renderDataTable({
         render_hla_typing_datatable(optitype_mhc_table)
       })
       #----------------------------------------------------------
-      # sequence_file <- NULL
-      # for (i in 1:nrow(optitype_mhc_table)) {
-      #   nucleotide <- paste(">", optitype_mhc_table[i, 1], "_nucleotide", sep = "")
-      #   protein <- paste(">", optitype_mhc_table[i, 1], "_protein", sep = "")
-      #   seqs <- rbind(rbind(nucleotide, optitype_mhc_table[i, 2]), rbind(protein, optitype_mhc_table[i, 3]))
-      #   sequence_file <- rbind(sequence_file, seqs)
-      # }
       sequence_file <- NULL
       for (i in seq_len(nrow(optitype_mhc_table))) {
         allele_i <- optitype_mhc_table$Allele[i]
@@ -410,6 +277,10 @@ observeEvent(input$hla_typing_button, {
       system(paste("/arcasHLA/arcasHLA genotype57 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     } else if (input$imgthla == "v3.58.0") {
       system(paste("/arcasHLA/arcasHLA genotype58 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
+    } else if (input$imgthla == "v3.59.0") {
+      system(paste("/arcasHLA/arcasHLA genotype59 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
+    } else if (input$imgthla == "v3.60.0") {
+      system(paste("/arcasHLA/arcasHLA genotype60 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     }
     #----------------------------------------------------------
     arcashla_genotype_path <- paste("./Output/arcashla/sample_1.genotype.json", sep = "")
@@ -554,45 +425,6 @@ observeEvent(input$hla_typing_button, {
       arcashla_mhc_table <- arcashla_mhc_table[order(arcashla_mhc_table$Allele), , drop = FALSE]
       arcashla_mhc_table <- arcashla_mhc_table[, c("Allele", "nucleotide", "protein"), drop = FALSE]
       #----------------------------------------------------------
-      # output$hla_typing_table <- renderDataTable({
-      #   datatable(
-      #     arcashla_mhc_table,
-      #     filter = "none",
-      #     rownames = FALSE,
-      #     selection = "none",
-      #     escape = FALSE,
-      #     class = "nowrap",
-      #     options = list(
-      #       pageLength = 8,
-      #       autoWidth = TRUE,
-      #       scrollX = TRUE,
-      #       columnDefs = list(
-      #         list(
-      #           targets = 0,   ## PharmGKB button 欄
-      #           orderable = FALSE,
-      #           searchable = FALSE,
-      #           width = "110px"
-      #         ),
-      #         list(
-      #           targets = 4,   ## 隱藏內部 query 欄
-      #           visible = FALSE
-      #         ),
-      #         list(
-      #           width = "100px",
-      #           targets = c(1, 2, 3),
-      #           render = JS(
-      #             "function(data, type, row, meta) {",
-      #             "  if (type === 'display' && data != null && data.length > 40) {",
-      #             "    return '<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>';",
-      #             "  }",
-      #             "  return data;",
-      #             "}"
-      #           )
-      #         )
-      #       )
-      #     )
-      #   )
-      # })
       output$hla_typing_table <- renderDataTable({
         render_hla_typing_datatable(arcashla_mhc_table)
       })
@@ -617,16 +449,6 @@ observeEvent(input$hla_typing_button, {
       }
       output_file <- paste("./Output/arcashla_", input$sequence, "_", input$imgthla, ".txt", sep = "")
       write(sequence_file, file = output_file)
-      #----------------------------------------------------------
-      # sequence_file <- NULL
-      # for (i in 1:nrow(arcashla_mhc_table)) {
-      #   nucleotide <- paste(">", arcashla_mhc_table[i, 1], "_nucleotide", sep = "")
-      #   protein <- paste(">", arcashla_mhc_table[i, 1], "_protein", sep = "")
-      #   seqs <- rbind(rbind(nucleotide, arcashla_mhc_table[i, 2]), rbind(protein, arcashla_mhc_table[i, 3]))
-      #   sequence_file <- rbind(sequence_file, seqs)
-      # }
-      # output_file <- paste("./Output/arcashla_", input$sequence, "_", input$imgthla, ".txt", sep = "")
-      # write(sequence_file, file = output_file)
       #----------------------------------------------------------
       zip_folder_pathway <- file.path(WORK_ROOT, "Download", paste0("arcashla_", input$sequence, "_", input$imgthla, "_zip"))
       dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
@@ -718,45 +540,11 @@ observeEvent(input$hla_typing_button, {
       system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary57 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.58.0") {
       system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary58 sample ./Output/hlahd", sep = ""))
+    } else if (input$imgthla == "v3.59.0") {
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary59 sample ./Output/hlahd", sep = ""))
+    } else if (input$imgthla == "v3.60.0") {
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary60 sample ./Output/hlahd", sep = ""))
     }
-    #-----------------------------------------------------------
-    # if (dir.exists("./IGV/hlahd")) {
-    #   unlink("./IGV/hlahd", recursive = TRUE)
-    # }
-    # dir.create("./IGV/hlahd", showWarnings = FALSE)
-    #----------------------------------------------------------
-    # # Merge two SAM files
-    # system("cat ./Output/hlahd/sample/mapfile/sample.all.R1.pmap.NM.sam ./Output/hlahd/sample/mapfile/sample.all.R2.pmap.NM.sam > ./IGV/hlahd/sample.all.merged.sam")
-    # 
-    # # Extract headers and move them to the beginning of the file
-    # system("grep '^@' ./IGV/hlahd/sample.all.merged.sam > ./IGV/hlahd/header.sam")
-    # system("grep -v '^@' ./IGV/hlahd/sample.all.merged.sam > ./IGV/hlahd/body.sam")
-    # system("cat ./IGV/hlahd/header.sam ./IGV/hlahd/body.sam > ./IGV/hlahd/sample.all.corrected.merged.sam")
-    # 
-    # # Keep only the first occurrence of each sequence name and remove duplicates
-    # system("awk '!seen[$0]++' ./IGV/hlahd/sample.all.corrected.merged.sam > ./IGV/hlahd/sample.all.rmdup.sam")
-    # 
-    # # Convert the merged SAM file to BAM format
-    # system("samtools view -Sb ./IGV/hlahd/sample.all.rmdup.sam > ./IGV/hlahd/sample.all.rmdup.bam")
-    # 
-    # # Sort the merged BAM file
-    # system("samtools sort -o ./IGV/hlahd/sample.all.sorted.bam ./IGV/hlahd/sample.all.rmdup.bam")
-    # 
-    # # Remove intermediate files
-    # file.remove("./IGV/hlahd/sample.all.merged.sam")
-    # file.remove("./IGV/hlahd/sample.all.corrected.merged.sam")
-    # file.remove("./IGV/hlahd/sample.all.rmdup.sam")
-    # file.remove("./IGV/hlahd/sample.all.rmdup.bam")
-    # file.remove("./IGV/hlahd/header.sam")
-    # file.remove("./IGV/hlahd/body.sam")
-    # 
-    # # Extract exon names matched with the reference from the mapping results as a list
-    # system("samtools view ./IGV/hlahd/sample.all.sorted.bam | cut -f 3 | grep -E '^[ABC]:Exon' > ./IGV/hlahd/hlahd_mhc_i_list.txt")
-    # system("samtools view ./IGV/hlahd/sample.all.sorted.bam | cut -f 3 | grep -E '^D(PA|PB|QA|QB|RB)1:Exon' > ./IGV/hlahd/hlahd_mhc_ii_list.txt")
-    # 
-    # # Create hla_reference.fasta for sample.all.sorted.bam
-    # input_list_I <- file.path(getwd(), "IGV/hlahd/hlahd_mhc_i_list.txt")
-    # input_list_II <- file.path(getwd(), "IGV/hlahd/hlahd_mhc_ii_list.txt")
     #----------------------------------------------------------
     if (input$imgthla == "v3.14.0") {
       reference_fasta <- "/hlahd.1.7.0/IMGTHLA_version/dictionary14/all_exon_N150.fasta"
@@ -780,66 +568,13 @@ observeEvent(input$hla_typing_button, {
       reference_fasta <- "/hlahd.1.7.0/IMGTHLA_version/dictionary57/all_exon_N150.fasta"
     } else if (input$imgthla == "v3.58.0") {
       reference_fasta <- "/hlahd.1.7.0/IMGTHLA_version/dictionary58/all_exon_N150.fasta"
+    } else if (input$imgthla == "v3.59.0") {
+      reference_fasta <- "/hlahd.1.7.0/IMGTHLA_version/dictionary59/all_exon_N150.fasta"
+    } else if (input$imgthla == "v3.60.0") {
+      reference_fasta <- "/hlahd.1.7.0/IMGTHLA_version/dictionary60/all_exon_N150.fasta"
     } else {
       stop("Unknown IMGTHLA version")
     }
-    #----------------------------------------------------------
-    # igv_fasta_I <- file.path(getwd(), "IGV/hlahd/hlahd_hla_reference_I_igv.fasta")
-    # igv_fasta_II <- file.path(getwd(), "IGV/hlahd/hlahd_hla_reference_II_igv.fasta")
-    # # Create IGV Genome reference
-    # system(paste("python /root/shiny/Server/hlahd_igv_genome.py",
-    #              input_list_I,
-    #              reference_fasta,
-    #              igv_fasta_I,
-    #              sep = " "
-    # ))
-    # system(paste("python /root/shiny/Server/hlahd_igv_genome.py",
-    #              input_list_II,
-    #              reference_fasta,
-    #              igv_fasta_II,
-    #              sep = " "
-    # ))
-    # 
-    # # Step 1: Modify BAM file using samtools and sed
-    # system('samtools view -h ./IGV/hlahd/sample.all.sorted.bam |
-    #    sed "s/A:Exon/A_Exon/g; s/B:Exon/B_Exon/g; s/C:Exon/C_Exon/g; s/DPA1:Exon/DPA1_Exon/g;
-    #         s/DPB1:Exon/DPB1_Exon/g; s/DQA1:Exon/DQA1_Exon/g; s/DQB1:Exon/DQB1_Exon/g;
-    #         s/DRB1:Exon/DRB1_Exon/g" > ./IGV/hlahd/sample.modified.sam')
-    # 
-    # # Step 2: Convert modified SAM file back to BAM format
-    # system("samtools view -Sb ./IGV/hlahd/sample.modified.sam > ./IGV/hlahd/sample.modified.bam")
-    # 
-    # # Step 3: Modify HLA reference I FASTA file by replacing ':' with '_'
-    # system("mv ./IGV/hlahd/hlahd_hla_reference_I_igv.fasta ./IGV/hlahd/hlahd_hla_reference_I_igv_colon.fasta")
-    # system('sed "s/:Exon/_Exon/g" ./IGV/hlahd/hlahd_hla_reference_I_igv_colon.fasta > ./IGV/hlahd/hlahd_hla_reference_I_igv.fasta')
-    # 
-    # # Step 4: Modify HLA reference II FASTA file by replacing ':' with '_'
-    # system("mv ./IGV/hlahd/hlahd_hla_reference_II_igv.fasta ./IGV/hlahd/hlahd_hla_reference_II_igv_colon.fasta")
-    # system('sed "s/:Exon/_Exon/g" ./IGV/hlahd/hlahd_hla_reference_II_igv_colon.fasta > ./IGV/hlahd/hlahd_hla_reference_II_igv.fasta')
-    # 
-    # # Create reference.fasta index
-    # fasta_files <- c(
-    #   "./IGV/hlahd/hlahd_hla_reference_I_igv.fasta",
-    #   "./IGV/hlahd/hlahd_hla_reference_II_igv.fasta"
-    # )
-    # 
-    # # Function to check and index FASTA
-    # index_fasta <- function(fasta_path) {
-    #   if (file.exists(fasta_path) && file.size(fasta_path) > 0) {
-    #     system(paste("samtools faidx", fasta_path))
-    #   }
-    # }
-    # 
-    # # Run indexing for each file
-    # lapply(fasta_files, index_fasta)
-    # 
-    # # Remove intermediate files
-    # file.remove(input_list_I)
-    # file.remove(input_list_II)
-    # file.remove("./IGV/hlahd/sample.all.sorted.bam")
-    # file.remove("./IGV/hlahd/sample.modified.sam")
-    # file.remove("./IGV/hlahd/hlahd_hla_reference_I_igv_colon.fasta")
-    # file.remove("./IGV/hlahd/hlahd_hla_reference_II_igv_colon.fasta")
     #-----------------------------------------------------------
     system("head -n 8 ./Output/hlahd/sample/result/sample_final.result.txt > ./Output/hlahd/sample_final_mhc.result.txt")
     
@@ -905,10 +640,6 @@ observeEvent(input$hla_typing_button, {
         file.remove(merged_file)
       }
       
-      # # Remove the previous successful typing folder (igv_folder) if it exists
-      # if (dir.exists(igv_folder)) {
-      #   unlink(igv_folder, recursive = TRUE)
-      # }
     } else {
       hlahd_mhc_table <- data.frame(
         Allele = character(nrow(hlahd_stacked)),
@@ -1014,29 +745,6 @@ observeEvent(input$hla_typing_button, {
       output$hla_typing_table <- renderDataTable({
         render_hla_typing_datatable(hlahd_mhc_table)
       })
-      # output$hla_typing_table <- renderDataTable({
-      #   datatable(hlahd_mhc_table,
-      #             filter = "top",
-      #             rownames = FALSE,
-      #             selection = "none",
-      #             class = "nowrap",
-      #             options = list(
-      #               pageLength = 8,
-      #               autoWidth = TRUE,
-      #               scrollX = TRUE,
-      #               columnDefs = list(list(
-      #                 targets = "_all",
-      #                 width = "100px",
-      #                 render = JS(
-      #                   "function(data, type, row, meta) {",
-      #                   "return type === 'display' && data != null && data.length > 40 ?",
-      #                   "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
-      #                   "}"
-      #                 )
-      #               ))
-      #             )
-      #   )
-      # })
       #----------------------------------------------------------
       sequence_file <- NULL
       for (i in seq_len(nrow(hlahd_mhc_table))) {
@@ -1058,15 +766,6 @@ observeEvent(input$hla_typing_button, {
       }
       output_file <- paste("./Output/hlahd_", input$sequence, "_", input$imgthla, ".txt", sep = "")
       write(sequence_file, file = output_file)
-      # sequence_file <- NULL
-      # for (i in 1:nrow(hlahd_mhc_table)) {
-      #   nucleotide <- paste(">", hlahd_mhc_table[i, 1], "_nucleotide", sep = "")
-      #   protein <- paste(">", hlahd_mhc_table[i, 1], "_protein", sep = "")
-      #   seqs <- rbind(rbind(nucleotide, hlahd_mhc_table[i, 2]), rbind(protein, hlahd_mhc_table[i, 3]))
-      #   sequence_file <- rbind(sequence_file, seqs)
-      # }
-      # output_file <- paste("./Output/hlahd_", input$sequence, "_", input$imgthla, ".txt", sep = "")
-      # write(sequence_file, file = output_file)
       #----------------------------------------------------------
       zip_folder_pathway <- file.path(WORK_ROOT, "Download", paste0("hlahd_", input$sequence, "_", input$imgthla, "_zip"))
       dir.create(zip_folder_pathway, recursive = TRUE, showWarnings = FALSE)
@@ -1144,7 +843,6 @@ observeEvent(input$hla_typing_button, {
     imgt_version_number <- gsub("\\.", "", sub("^v", "", input$imgthla))
     imgt_dir <- file.path("/T1K/IMGTHLA", input$imgthla)
     origin_fa <- file.path(imgt_dir, paste0("IMGTHLA_", imgt_version_number, "_", seq_suffix, "_seq.fa"))
-    # igv_fa <- file.path(imgt_dir, paste0("IMGTHLA_", imgt_version_number, "_", seq_suffix, "_seq_igv.fa"))
     #----------------------------------------------------------
     base_output_dir <- file.path(WORK_ROOT, "Output", "t1k")
     # igv_out_dir <- file.path(WORK_ROOT, "IGV", "t1k")
@@ -1167,33 +865,6 @@ observeEvent(input$hla_typing_button, {
       "-o", output_dir
     )
     system(cmd)
-    #----------------------------------------------------------
-    # fa1 <- file.path(base_output_dir, "t1k_aligned_1.fa")
-    # fa2 <- file.path(base_output_dir, "t1k_aligned_2.fa")
-    # 
-    # system(paste("/T1K/replace_fasta_colon.sh", origin_fa, igv_fa))
-    # system(paste("bwa index", igv_fa))
-    # 
-    # fq1 <- file.path(igv_out_dir, "t1k_aligned_1.fq")
-    # fq2 <- file.path(igv_out_dir, "t1k_aligned_2.fq")
-    # convert_fa_to_fq(fa1, fq1)
-    # convert_fa_to_fq(fa2, fq2)
-    # 
-    # bam_path <- file.path(igv_out_dir, "t1k_mapping.bam")
-    # system(paste(
-    #   "bwa mem -t", num_cores, igv_fa, fq1, fq2,
-    #   "| samtools sort -@", num_cores, "-o", bam_path
-    # ))
-    # system(paste("samtools index", bam_path))
-    # 
-    # system(paste("/T1K/split_hla_fasta.sh", igv_fa, igv_out_dir))
-    # classI_fa <- file.path(igv_out_dir, "hla_classI_ABC.fasta")
-    # classII_fa <- file.path(igv_out_dir, "hla_classII_D.fasta")
-    # system(paste("samtools faidx", classI_fa))
-    # system(paste("samtools faidx", classII_fa))
-    # #----------------------------------------------------------
-    # unlink(c(fq1, fq2))
-    # file.remove(paste0(igv_fa, c("", ".amb", ".ann", ".bwt", ".pac", ".sa")))
     #----------------------------------------------------------
     t1k_raw <- read.delim("./Output/t1k/t1k_genotype.tsv", header = FALSE, sep = "\t", stringsAsFactors = FALSE)
     
@@ -1298,35 +969,11 @@ observeEvent(input$hla_typing_button, {
       }
     }
     #----------------------------------------------------------
-    ## 保持 table 內容乾淨，只保留核心欄位
     t1k_mhc_table <- t1k_mhc_table[, c("Allele", "nucleotide", "protein"), drop = FALSE]
     #----------------------------------------------------------
     output$hla_typing_table <- renderDataTable({
       render_hla_typing_datatable(t1k_mhc_table)
     })
-    # output$hla_typing_table <- renderDataTable({
-    #   datatable(t1k_mhc_table,
-    #             filter = "top",
-    #             rownames = FALSE,
-    #             selection = "none",
-    #             class = "nowrap",
-    #             options = list(
-    #               pageLength = 8,
-    #               autoWidth = TRUE,
-    #               scrollX = TRUE,
-    #               columnDefs = list(list(
-    #                 width = "100px",
-    #                 targets = "_all",
-    #                 render = JS(
-    #                   "function(data, type, row, meta) {",
-    #                   "return type === 'display' && data != null && data.length > 40 ?",
-    #                   "'<span title=\"' + data + '\">' + data.substr(0, 40) + '...</span>' : data;",
-    #                   "}"
-    #                 )
-    #               ))
-    #             )
-    #   )
-    # })
     #----------------------------------------------------------
     sequence_file <- NULL
     
@@ -1349,21 +996,6 @@ observeEvent(input$hla_typing_button, {
       
       sequence_file <- rbind(sequence_file, seqs)
     }
-    # sequence_file <- NULL
-    # 
-    # for (i in 1:nrow(t1k_mhc_table)) {
-    #   seq <- t1k_mhc_table[i, "Allele"]
-    #   nuc <- t1k_mhc_table[i, "nucleotide"]
-    #   prot <- t1k_mhc_table[i, "protein"]
-    #   
-    #   short_seq <- sub("^HLA-", "", seq)
-    #   
-    #   nucleotide_header <- paste0(">", short_seq, "_nucleotide")
-    #   protein_header <- paste0(">", short_seq, "_protein")
-    #   
-    #   seqs <- rbind(c(nucleotide_header), c(nuc), c(protein_header), c(prot))
-    #   sequence_file <- rbind(sequence_file, seqs)
-    # }
     
     output_file <- file.path(WORK_ROOT, "Output", paste0("t1k_", input$sequence, "_", input$imgthla, ".txt"))
     write(sequence_file, file = output_file)

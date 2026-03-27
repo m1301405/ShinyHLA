@@ -8,11 +8,8 @@ library(readr)
 library(htmlwidgets)
 library(waiter)
 library(rvest)
-#library(igvShiny)
 library(shinyjs)
 library(dplyr)
-#library(GenomicAlignments)
-#library(rtracklayer)
 library(R.utils)
 library(shinyalert)
 library(readxl)
@@ -24,20 +21,10 @@ library(shinyWidgets)
 library(knitr)
 library(kableExtra)
 library(formattable) 
+library(reactable) 
+library(htmltools)
+library(ggplot2)
 
-library(reactable) ##
-library(htmltools) ##
-library(ggplot2) ##
-
-
-# ## Upload file size limit
-# options(shiny.maxRequestSize = 5000 * 1024^2)
-# 
-# ## Cascade filter
-# HLA_typing <- read_excel("/root/shiny/HLA_package_list.xlsx")
-# 
-# ## System CPU
-# num_cores <- detectCores() - 1
 
 source("/root/shiny/R/app_globals.R")
 source("/root/shiny/R/app_helpers.R")
