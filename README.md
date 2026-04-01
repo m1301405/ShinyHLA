@@ -24,7 +24,7 @@ ShinyHLA uses the following software and reference resources:
 - [OptiType v1.3.5](https://github.com/FRED-2/OptiType)
 - [arcasHLA v0.6.0](https://github.com/RabadanLab/arcasHLA)
 - [HLA-HD v1.7.0](https://w3.genome.med.kyoto-u.ac.jp/HLA-HD/)
-- [SpecHLA v1.0.7](https://github.com/deepomicslab/SpecHLA)
+- [T1K v1.0.8](https://github.com/mourisl/T1K)
 
 ### 2. R packages
 - Please refer to [ShinyHLA Documentation](https://animated-reminder-9ff.notion.site/ebd//7b6f9fcf9d034442b2b64c89f8662a6c), section 1.7.
