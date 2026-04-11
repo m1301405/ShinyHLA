@@ -67,10 +67,12 @@ observeEvent(input$bam_upload_button, {
     }
     dir.create(bam_dir, showWarnings = FALSE)
     
-    file.copy(input$bam_upload$datapath, bam_dir, overwrite = TRUE)
-    
     # Convert BAM to Fastq
+    # file.copy(input$bam_upload$datapath, bam_dir, overwrite = TRUE)
+    # bam_file <- file.path(bam_dir, "sample.bam")
     bam_file <- file.path(bam_dir, "sample.bam")
+    file.copy(input$bam_upload$datapath, bam_file, overwrite = TRUE)
+
     system(paste("/arcasHLA/arcasHLA extract", bam_file, "-o", bam_dir, "-t", num_cores, "-v"))
     
     # Remove existing Input directory and recreate it
@@ -87,102 +89,174 @@ observeEvent(input$bam_upload_button, {
   }
   w$hide()
 })
+# ------------------------------------------------------------
+# Common reload core
+# source_type: "history" or "demo"
+# ------------------------------------------------------------
+load_result_from_dir <- function(
+    target_dir,
+    display_id,
+    source_type = c("history", "demo"),
+    show_success_alert = TRUE,
+    id_box_label = "JobID",
+    mode_value = "reload",
+    use_waiter = TRUE
+) {
+  source_type <- match.arg(source_type)
+  
+  target_rds <- file.path(target_dir, "result_data.rds")
+  
+  if (!dir.exists(target_dir)) {
+    shinyalert("Error", paste("Target directory not found:", target_dir), type = "error")
+    return(FALSE)
+  }
+  
+  if (!file.exists(target_rds)) {
+    shinyalert("Error", paste("result_data.rds not found in:", target_dir), type = "error")
+    return(FALSE)
+  }
+  
+  w <- NULL
+  if (isTRUE(use_waiter)) {
+    w <- Waiter$new(html = spin_loader(), color = transparent(0.8))
+    w$show()
+    on.exit(w$hide(), add = TRUE)
+  }
+  
+  loaded_data <- readRDS(target_rds)
+  
+  # ----------------------------------------------------------
+  # effective source
+  # ----------------------------------------------------------
+  effective_source <- source_type
+  if (
+    identical(source_type, "history") &&
+    !is.null(loaded_data$source_type) &&
+    nzchar(loaded_data$source_type)
+  ) {
+    effective_source <- loaded_data$source_type
+  }
+  
+  current_result_source(effective_source)
+  
+  # ----------------------------------------------------------
+  # Demo result -> auto write merged csv into demo pivot pool
+  # ----------------------------------------------------------
+  if (identical(effective_source, "demo")) {
+    tryCatch(
+      {
+        write_demo_pivot_csv_from_result(
+          target_dir = target_dir,
+          loaded_data = loaded_data,
+          display_id = display_id
+        )
+      },
+      error = function(e) {
+        warning(sprintf("Failed to prepare demo pivot csv for %s: %s", display_id, e$message))
+      }
+    )
+  }
+  
+  # ----------------------------------------------------------
+  # optional cleanup
+  # ----------------------------------------------------------
+  if (!is.null(loaded_data$table)) {
+    drop_cols <- intersect(c("PharmGKB", "pharmgkb_allele"), colnames(loaded_data$table))
+    if (length(drop_cols) > 0) {
+      loaded_data$table <- loaded_data$table[, setdiff(colnames(loaded_data$table), drop_cols), drop = FALSE]
+    }
+  }
+  
+  # ----------------------------------------------------------
+  # Resolve ZIP
+  # ----------------------------------------------------------
+  resolved_zip <- resolve_zip_from_loaded_data(target_dir, loaded_data)
+  
+  if (is.null(resolved_zip) || !file.exists(resolved_zip)) {
+    shinyalert("Error", "This result exists but the archived ZIP file is missing.", type = "error")
+    return(FALSE)
+  }
+  
+  # ----------------------------------------------------------
+  # Update reactive state
+  # ----------------------------------------------------------
+  current_job_id(display_id)
+  package_value(loaded_data$tool)
+  
+  current_mode(mode_value)
+  current_tmp_zip(NULL)
+  current_history_zip(normalizePath(resolved_zip, winslash = "/", mustWork = FALSE))
+  current_prefix(basename(resolved_zip))
+  
+  # ----------------------------------------------------------
+  # UI: table
+  # ----------------------------------------------------------
+  output$hla_typing_table <- renderDataTable({
+    render_hla_typing_datatable(loaded_data$table)
+  })
+  
+  # ----------------------------------------------------------
+  # UI: summary
+  # ----------------------------------------------------------
+  output$summary_boxes <- renderUI({
+    fluidRow(
+      column(
+        width = 3,
+        summaryBox("NGS Type", loaded_data$ngs_type, width = 12, icon = icon("dna"), style = "info")
+      ),
+      column(
+        width = 3,
+        summaryBox("IPD-IMGT/HLA Version", loaded_data$version, width = 12, icon = icon("code-branch"), style = "success")
+      ),
+      column(
+        width = 3,
+        summaryBox("Typing Tool", loaded_data$tool, width = 12, icon = icon("box"), style = "danger")
+      ),
+      column(
+        width = 3,
+        summaryBox(
+          id_box_label,
+          display_id,
+          width = 12,
+          icon = icon("fingerprint"),
+          style = "primary"
+        )
+      )
+    )
+  })
+  
+  updateTabItems(session, "my_tabs", "hla")
+  updateTabsetPanel(session, "hla_panel", selected = "Result")
+  
+  if (isTRUE(show_success_alert)) {
+    shinyalert(
+      "Success",
+      paste(id_box_label, "loaded successfully:", display_id),
+      type = "success"
+    )
+  }
+  
+  TRUE
+}
 
-#-----------------------------------------------------------------------
+# ============================================================
+# Manual JobID reload
+# ============================================================
 observeEvent(input$jobid_load_button, {
   if (is.null(input$jobid_input) || !nzchar(input$jobid_input)) {
     shinyalert("Error", "Please enter a valid JobID.", type = "error")
     return()
   }
   
-  jid <- input$jobid_input
-  HISTORY_ROOT <- "/root/shiny/History"
-  
+  jid <- trimws(input$jobid_input)
   target_dir <- file.path(HISTORY_ROOT, jid)
-  target_rds <- file.path(target_dir, "result_data.rds")
   
-  if (!file.exists(target_rds)) {
-    shinyalert("Error", paste("JobID", jid, "not found or incomplete."), type = "error")
-    return()
-  }
-  
-  w <- Waiter$new(html = spin_loader(), color = transparent(0.8))
-  w$show()
-  
-  loaded_data <- readRDS(target_rds)
-  
-  ## 舊版 result_data.rds 可能已經混入 display 欄位，先清掉
-  if (!is.null(loaded_data$table)) {
-    drop_cols <- intersect(c("PharmGKB", "pharmgkb_allele"), colnames(loaded_data$table))
-    if (length(drop_cols) > 0) {
-      loaded_data$table <- loaded_data$table[, setdiff(colnames(loaded_data$table), drop_cols), drop = FALSE]
-    }
-  }  
-  # ------------------------------------------------------------
-  # Reload ZIP resolution (canonical first)
-  # ------------------------------------------------------------
-  canonical_zip <- file.path(target_dir, "output.zip")
-  
-  fallback_zip <- if (!is.null(loaded_data$zip_path) && nzchar(loaded_data$zip_path)) loaded_data$zip_path else NULL
-  
-  zip_candidates <- list.files(target_dir, pattern = "\\.zip$", full.names = TRUE)
-  first_zip <- if (length(zip_candidates) > 0) zip_candidates[1] else NULL
-  
-  resolved_zip <- NULL
-  if (file.exists(canonical_zip)) {
-    resolved_zip <- canonical_zip
-  } else if (!is.null(fallback_zip) && file.exists(fallback_zip)) {
-    resolved_zip <- fallback_zip
-  } else if (!is.null(first_zip) && file.exists(first_zip)) {
-    resolved_zip <- first_zip
-  }
-  
-  if (is.null(resolved_zip) || !file.exists(resolved_zip)) {
-    w$hide()
-    shinyalert("Error", "This JobID exists but the archived ZIP file is missing.", type = "error")
-    return()
-  }
-  
-  # ------------------------------------------------------------
-  # Update reactive state for Reload mode
-  # ------------------------------------------------------------
-  current_job_id(jid)
-  package_value(loaded_data$tool)
-  
-  current_mode("reload")
-  current_tmp_zip(NULL) # reload 不用 tmp
-  
-  current_history_zip(normalizePath(resolved_zip, winslash = "/", mustWork = FALSE))
-  current_prefix(basename(resolved_zip))
-  
-  # # Reset IGV button to force user to click again to load/update IGV
-  # shinyjs::reset("igv_reference")
-  
-  # ------------------------------------------------------------
-  # UI: table
-  # ------------------------------------------------------------
-  output$hla_typing_table <- renderDataTable({
-    render_hla_typing_datatable(loaded_data$table)
-  })
-  
-  # UI: summary
-  output$summary_boxes <- renderUI({
-    fluidRow(
-      column(width = 3, summaryBox("NGS Type", loaded_data$ngs_type, width = 12, icon = icon("dna"), style = "info")),
-      column(width = 3, summaryBox("IPD-IMGT/HLA Version", loaded_data$version, width = 12, icon = icon("code-branch"), style = "success")),
-      column(width = 3, summaryBox("Typing Tool", loaded_data$tool, width = 12, icon = icon("box"), style = "danger")),
-      column(width = 3, summaryBox("JobID", jid, width = 12, icon = icon("fingerprint"), style = "primary"))
-    )
-  })
-  
-  updateTabItems(session, "my_tabs", "hla")
-  
-  w$hide()
-  shinyalert("Success", paste("JobID:", jid, "loaded successfully."), type = "success")
+  load_result_from_dir(
+    target_dir  = target_dir,
+    display_id  = jid,
+    source_type = "history"
+  )
 })
-
-
-
 ## Demo QC option
 wes_demo_uploaded_once <- reactiveVal(FALSE)
 

@@ -7,7 +7,186 @@ getCurrentTime <- function() {
   return(formatted_time)
 }
 #----------------------------------------------------------
+append_execution_log <- function(job_id, ngs_type, version, tool, execution_seconds) {
+  log_entry <- paste(
+    getCurrentTime(),
+    "| JobID=", job_id,
+    "|", ngs_type,
+    "|", version,
+    "|", tool,
+    "| Execution:", execution_seconds, "s"
+  )
+  
+  execution_times$times <- c(log_entry, execution_times$times)
+  
+  output$hla_log <- renderUI({
+    HTML(paste(
+      "<span style='font-size:12px;'>",
+      paste(execution_times$times, collapse = "<br>"),
+      "</span>"
+    ))
+  })
+}
+
+#----------------------------------------------------------
+resolve_zip_from_loaded_data <- function(target_dir, loaded_data) {
+  canonical_zip <- file.path(target_dir, "output.zip")
+  
+  fallback_zip <- if (!is.null(loaded_data$zip_path) && nzchar(loaded_data$zip_path)) {
+    loaded_data$zip_path
+  } else {
+    NULL
+  }
+  
+  zip_candidates <- list.files(target_dir, pattern = "\\.zip$", full.names = TRUE)
+  first_zip <- if (length(zip_candidates) > 0) zip_candidates[1] else NULL
+  
+  resolved_zip <- NULL
+  if (file.exists(canonical_zip)) {
+    resolved_zip <- canonical_zip
+  } else if (!is.null(fallback_zip) && file.exists(fallback_zip)) {
+    resolved_zip <- fallback_zip
+  } else if (!is.null(first_zip) && file.exists(first_zip)) {
+    resolved_zip <- first_zip
+  }
+  
+  resolved_zip
+}
+
+#----------------------------------------------------------
+archive_demo_result_to_history <- function(target_dir, demo_job_id) {
+  history_dir <- file.path(HISTORY_ROOT, demo_job_id)
+  dir.create(history_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  target_rds <- file.path(target_dir, "result_data.rds")
+  if (!file.exists(target_rds)) {
+    stop(sprintf("result_data.rds not found in demo target_dir: %s", target_dir))
+  }
+  
+  loaded_data <- readRDS(target_rds)
+  resolved_zip <- resolve_zip_from_loaded_data(target_dir, loaded_data)
+  
+  if (is.null(resolved_zip) || !file.exists(resolved_zip)) {
+    stop(sprintf("No zip file found in demo target_dir: %s", target_dir))
+  }
+  
+  history_zip <- file.path(history_dir, basename(resolved_zip))
+  ok <- file.copy(resolved_zip, history_zip, overwrite = TRUE)
+  
+  if (!ok || !file.exists(history_zip)) {
+    stop("Failed to archive demo ZIP into /root/shiny/History.")
+  }
+  
+  loaded_data$job_id <- demo_job_id
+  loaded_data$zip_path <- normalizePath(history_zip, winslash = "/", mustWork = FALSE)
+  loaded_data$source_type <- "demo"
+  loaded_data$demo_file_folder <- demo_job_id
+  
+  saveRDS(
+    loaded_data,
+    file = file.path(history_dir, "result_data.rds")
+  )
+  
+  list(
+    history_dir = history_dir,
+    history_zip = normalizePath(history_zip, winslash = "/", mustWork = FALSE),
+    loaded_data = loaded_data
+  )
+}
+#----------------------------------------------------------
 observeEvent(input$hla_typing_button, {
+  # ----------------------------------------------------------
+  # Demo mode: simulate analysis, then write to History and load
+  # ----------------------------------------------------------
+  if (identical(source_mode(), "demo")) {
+    req(input$sequence, input$imgthla, input$package)
+    
+    ngs_type <- trimws(as.character(input$sequence))
+    version  <- trimws(as.character(input$imgthla))
+    tool     <- trimws(as.character(input$package))
+    
+    demo_file_folder <- tryCatch(
+      resolve_demo_folder(
+        ngs_type = ngs_type,
+        version  = version,
+        tool     = tool
+      ),
+      error = function(e) {
+        shinyalert("Error", e$message, type = "error")
+        return(NULL)
+      }
+    )
+    
+    if (is.null(demo_file_folder)) return()
+    
+    target_dir <- tryCatch(
+      build_demo_target_dir(
+        ngs_type = ngs_type,
+        demo_file_folder = demo_file_folder
+      ),
+      error = function(e) {
+        shinyalert("Error", e$message, type = "error")
+        return(NULL)
+      }
+    )
+    
+    if (is.null(target_dir)) return()
+    
+    start_time <- Sys.time()
+    
+    w <- Waiter$new(
+      html = spin_loader(),
+      color = transparent(0.8)
+    )
+    w$show()
+    on.exit(w$hide(), add = TRUE)
+    
+    Sys.sleep(15)
+    
+    demo_archive <- tryCatch(
+      archive_demo_result_to_history(
+        target_dir = target_dir,
+        demo_job_id = demo_file_folder
+      ),
+      error = function(e) {
+        shinyalert("Error", e$message, type = "error")
+        return(NULL)
+      }
+    )
+    
+    if (is.null(demo_archive)) return()
+    
+    current_job_id(demo_file_folder)
+    
+    ok <- load_result_from_dir(
+      target_dir = demo_archive$history_dir,
+      display_id = demo_file_folder,
+      source_type = "demo",
+      show_success_alert = FALSE,
+      id_box_label = "JobID",
+      mode_value = "run",
+      use_waiter = FALSE
+    )
+    
+    if (!ok) return()
+    
+    end_time <- Sys.time()
+    execution_time <- difftime(end_time, start_time, units = "secs")
+    execution_time <- round(as.numeric(execution_time), 0)
+    
+    append_execution_log(
+      job_id = demo_file_folder,
+      ngs_type = ngs_type,
+      version = version,
+      tool = tool,
+      execution_seconds = execution_time
+    )
+    
+    return()
+  }
+  # ----------------------------------------------------------
+  # Normal mode:
+  # ----------------------------------------------------------
   HISTORY_ROOT <- "/root/shiny/History"
   dir.create(HISTORY_ROOT, recursive = TRUE, showWarnings = FALSE)
   
@@ -211,8 +390,6 @@ observeEvent(input$hla_typing_button, {
       output_file_zip_pathway <- paste("Download/optitype_", input$sequence, "_", input$imgthla, "_output.zip", sep = "")
       setwd(WORK_ROOT)
       #----------------------------------------------------------
-      # backup_igv_files("OptiType", new_id)
-      
       zip_name <- paste0("optitype_", input$sequence, "_", input$imgthla, "_output.zip")
       zip_src <- file.path(WORK_ROOT, "Download", zip_name)
       
@@ -793,8 +970,6 @@ observeEvent(input$hla_typing_button, {
       output_file_zip_pathway <- paste("Download/hlahd_", input$sequence, "_", input$imgthla, "_output.zip", sep = "")
       setwd(WORK_ROOT)
       #----------------------------------------------------------
-      # backup_igv_files("HLA-HD", new_id)
-      
       zip_name <- paste0("hlahd_", input$sequence, "_", input$imgthla, "_output.zip")
       zip_src <- file.path(WORK_ROOT, "Download", zip_name)
       
@@ -1030,8 +1205,6 @@ observeEvent(input$hla_typing_button, {
     zip(zipfile = output_file_zip_pathway, files = list.files(".", full.names = FALSE))
     setwd(WORK_ROOT)
     #----------------------------------------------------------
-    # backup_igv_files("T1K", new_id)
-    
     zip_src <- output_file_zip_pathway
     history_zip <- file.path(history_dir, basename(zip_src))
     ok <- file.copy(zip_src, history_zip, overwrite = TRUE)
@@ -1056,8 +1229,6 @@ observeEvent(input$hla_typing_button, {
     ), file = file.path(history_dir, "result_data.rds"))
   }
   #----------------------------------------------------------
-  
-  
   w$hide()
   #----------------------------------------------------------
   # Calculate execution time
@@ -1065,30 +1236,15 @@ observeEvent(input$hla_typing_button, {
   execution_time <- difftime(end_time, start_time, units = "secs")
   execution_time <- round(as.numeric(execution_time), 0)
   
-  # Get current JobID
-  jid <- current_job_id()
-  
-  # Record the current time, jobid and execution time
-  log_entry <- paste(
-    getCurrentTime(),
-    "| JobID=", jid,
-    "|", input$sequence,
-    "|", input$imgthla,
-    "|", input$package,
-    "| Execution:", execution_time, "s"
+  append_execution_log(
+    job_id = current_job_id(),
+    ngs_type = input$sequence,
+    version = input$imgthla,
+    tool = input$package,
+    execution_seconds = execution_time
   )
-  
-  # Append the new execution time to the existing log (newest on top)
-  execution_times$times <- c(log_entry, execution_times$times)
-  
-  # Display all execution times line by line
-  output$hla_log <- renderUI({
-    HTML(paste(
-      "<span style='font-size:12px;'>",
-      paste(execution_times$times, collapse = "<br>"),
-      "</span>"
-    ))
-  })
+  #----------------------------------------------------------
+  current_result_source("normal")
   #----------------------------------------------------------
   setwd(ori_dir)
 })

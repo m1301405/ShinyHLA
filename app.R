@@ -12,7 +12,6 @@ library(shinyjs)
 library(dplyr)
 library(R.utils)
 library(shinyalert)
-library(readxl)
 library(parallel)
 library(openxlsx)
 library(sortable)
@@ -24,7 +23,6 @@ library(formattable)
 library(reactable) 
 library(htmltools)
 library(ggplot2)
-
 
 source("/root/shiny/R/app_globals.R")
 source("/root/shiny/R/app_helpers.R")
@@ -47,21 +45,21 @@ ui <- bs4DashPage(
     collapsed = TRUE,
     sidebarMenu(
       id = "my_tabs",
-      menuItem("Home", tabName = "home",icon = icon("house")),
+      menuItem("Home", tabName = "home", icon = icon("house")),
       menuItem("Documentation", tabName = "doc", icon = icon("file-lines")),
-      menuItem("Data Upload", tabName = "upload",icon = icon("upload")),
-      menuItem("HLA Typing", tabName = "hla",icon = icon("play"))
+      menuItem("Data Upload", tabName = "upload", icon = icon("upload")),
+      menuItem("HLA Typing", tabName = "hla", icon = icon("play"))
     )
   ),
   bs4DashBody(
     shinyjs::useShinyjs(),
-    autoWaiter("pivot_table",html = spin_loader(), color=NULL),
+    autoWaiter("pivot_table", html = spin_loader(), color = NULL),
     useWaiter(),
     tags$head(
       tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
       tags$style(
         HTML("
-        .dataTables_wrapper .dataTables_paginate .paginate_button {padding: 0;margin: 0;}
+        .dataTables_wrapper .dataTables_paginate .paginate_button {padding: 0; margin: 0;}
         table.dataTable {width: 100% !important;}
         .dataTables_wrapper {width: 100%;}
       "),
@@ -79,8 +77,8 @@ ui <- bs4DashPage(
         .value-box .text {font-size: 18px;}
       "),
         HTML("
-        .pvtTable {width: 100% !important;table-layout: fixed;}
-        .pvtTable td, .pvtTable th {overflow: hidden;text-overflow: ellipsis;white-space: nowrap;}
+        .pvtTable {width: 100% !important; table-layout: fixed;}
+        .pvtTable td, .pvtTable th {overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
       "),
         HTML("
         .radio-inline {
@@ -138,8 +136,8 @@ ui <- bs4DashPage(
         }
         
         #summary_boxes .summary-item{
-          flex: 1 1 25%;   
-          min-width: 260px;      
+          flex: 1 1 25%;
+          min-width: 260px;
           padding: 0 8px;
           box-sizing: border-box;
         }
@@ -235,7 +233,7 @@ ui <- bs4DashPage(
             grid-template-columns: 1fr;
           }
         }
-        "),
+      "),
         HTML("
         #pharmgkb_box {
           width: 100% !important;
@@ -264,14 +262,17 @@ ui <- bs4DashPage(
       $(window).on('resize', function(){
         Shiny.onInputChange('window_resized', Math.random());
       });
-      Shiny.addCustomMessageHandler('igv_resized', function(message) {
-        $('#igvShiny_I').height($(window).height() * 0.6);
-        $('#igvShiny_II').height($(window).height() * 0.6);
+    
+      Shiny.addCustomMessageHandler('resetPharmgkbButtons', function(message) {
+        document.querySelectorAll('.pharmgkb-search-btn').forEach(function(btn) {
+          btn.disabled = false;
+          btn.innerHTML = 'Search';
+        });
       });
     "))
     ),
     tabItems(
-      tabItem(tabName = "home",source("UI/1_home.R", local = TRUE)$value),
+      tabItem(tabName = "home", source("UI/1_home.R", local = TRUE)$value),
       tabItem(tabName = "doc", source("UI/2_doc.R", local = TRUE)$value),
       tabItem(tabName = "upload", source("UI/3_upload.R", local = TRUE)$value),
       tabItem(tabName = "hla", source("UI/4_hla_typing.R", local = TRUE)$value)
@@ -292,11 +293,10 @@ server <- function(input, output, session) {
   HISTORY_ROOT <- "/root/shiny/History"
   dir.create(HISTORY_ROOT, recursive = TRUE, showWarnings = FALSE)
   
-  ## home page
-  source("Server/1_home_html.R",local = TRUE)$value
-  
   ## Demo upload
+  source("Server/3_Demo_cascade.R",local = TRUE)$value
   source("Server/3_Demo_upload.R",local = TRUE)$value
+  source("Server/3_Demo_pivotable.R",local = TRUE)$value
   
   ## upload
   source("Server/3_upload_file.R",local = TRUE)$value
@@ -316,9 +316,6 @@ server <- function(input, output, session) {
   ## pharmgkb
   source("Server/4_pharmgkb.R", local = TRUE)$value
   
-  ## BAM & IGV 
-  # source("Server/4_igvshiny.R",local = TRUE)$value
-
   ## valuebox
   source("Server/4_valuebox.R",local = TRUE)$value
 }

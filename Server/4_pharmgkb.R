@@ -1,11 +1,6 @@
 pharmgkb_panel_visible <- reactiveVal(FALSE)
 selected_allele <- reactiveVal(NULL)
 
-observeEvent(input$search_btn, {
-  req(input$allele_input)
-  selected_allele(trimws(input$allele_input))
-}, ignoreInit = FALSE)
-
 output$summary_annotation_overview <- renderUI({
   allele <- selected_allele()
   req(allele)
@@ -31,7 +26,37 @@ output$summary_annotation_overview <- renderUI({
     )
   }
   
-  evidence_levels <- collapse_pretty(sdat$level_of_evidence)
+  ## -----------------------------
+  ## Evidence level count summary
+  ## -----------------------------
+  level_order <- c("1A", "1B", "2A", "2B", "3", "4")
+  
+  level_dat <- unique(
+    sdat[, c("summary_annotation_id", "level_of_evidence"), drop = FALSE]
+  )
+  level_dat$level_of_evidence <- safe_trim(level_dat$level_of_evidence)
+  level_dat <- level_dat[
+    !is.na(level_dat$level_of_evidence) & level_dat$level_of_evidence != "",
+    ,
+    drop = FALSE
+  ]
+  
+  if (nrow(level_dat) == 0) {
+    evidence_levels <- "N/A"
+  } else {
+    level_tab <- table(factor(level_dat$level_of_evidence, levels = level_order))
+    level_tab <- level_tab[level_tab > 0]
+    
+    if (length(level_tab) == 0) {
+      evidence_levels <- "N/A"
+    } else {
+      evidence_levels <- paste0(
+        "Level ", names(level_tab), " (", as.integer(level_tab), ")",
+        collapse = "; "
+      )
+    }
+  }
+  
   modifiers <- collapse_pretty(sdat$level_modifiers)
   drugs_txt <- collapse_pretty(sdat$drugs)
   pheno_txt <- collapse_pretty(sdat$phenotypes)
@@ -53,7 +78,8 @@ output$summary_annotation_overview <- renderUI({
       ),
       
       div(
-        class = "overview-flex",          
+        class = "overview-flex",
+        
         ## LEFT
         div(
           class = "overview-left",
@@ -73,7 +99,7 @@ output$summary_annotation_overview <- renderUI({
           h4("Clinical Overview"),
           p(tags$b("Associated drug(s): "), drugs_txt),
           p(tags$b("Phenotype / risk: "), pheno_txt),
-          p(tags$b("Evidence level(s): "), ifelse(evidence_levels == "", "N/A", evidence_levels)),
+          p(tags$b("Evidence level(s): "), evidence_levels),
           p(tags$b("Level modifier(s): "), ifelse(modifiers == "", "N/A", modifiers)),
           
           div(
@@ -302,11 +328,13 @@ output$summary_annotation_plot <- renderPlot({
   
   level_order <- c("1A", "1B", "2A", "2B", "3", "4")
   
-  plot_df <- as.data.frame(table(sdat$level_of_evidence), stringsAsFactors = FALSE)
-  colnames(plot_df) <- c("level", "count")
-  plot_df$level <- factor(plot_df$level, levels = level_order)
-  plot_df <- plot_df[!is.na(plot_df$level), , drop = FALSE]
-  plot_df <- plot_df[order(plot_df$level, decreasing = TRUE), , drop = FALSE]
+  level_tab <- table(factor(sdat$level_of_evidence, levels = level_order))
+  
+  plot_df <- data.frame(
+    level = factor(level_order, levels = rev(level_order)),
+    count = as.integer(level_tab[level_order]),
+    stringsAsFactors = FALSE
+  )
   
   level_colors <- c(
     "1A" = "#2fb36d",
@@ -317,19 +345,31 @@ output$summary_annotation_plot <- renderPlot({
     "4"  = "#c53a3a"
   )
   
+  max_count <- max(plot_df$count, na.rm = TRUE)
+  y_breaks <- 0:max(1, max_count)
+  
   ggplot(plot_df, aes(x = level, y = count, fill = level)) +
     geom_col(width = 0.7) +
     coord_flip() +
-    scale_fill_manual(values = level_colors, guide = "none") +
+    scale_fill_manual(values = level_colors, guide = "none", drop = FALSE) +
+    scale_x_discrete(labels = function(x) paste("Level", x)) +
+    scale_y_continuous(
+      breaks = y_breaks,
+      labels = as.character(y_breaks),
+      limits = c(0, max(y_breaks)),
+      expand = expansion(mult = c(0, 0.02))
+    ) +
     labs(
-      x = NULL,
-      y = NULL
+      x = "Evidence level",
+      y = "Number of summary annotations"
     ) +
     theme_minimal(base_size = 13) +
     theme(
       plot.title = element_blank(),
       axis.text.y = element_text(size = 13),
       axis.text.x = element_text(size = 11),
+      axis.title.x = element_text(size = 12),
+      axis.title.y = element_text(size = 12),
       panel.grid.minor = element_blank(),
       panel.grid.major.y = element_blank()
     )
@@ -390,6 +430,7 @@ output$variant_annotation_overview <- renderUI({
   }
   
   pop_vec <- split_clean_unique(pop_chr)
+  pop_vec <- pop_vec[!tolower(pop_vec) %in% c("unknown", "unk")]
   pop_text <- if (length(pop_vec) == 0) {
     "N/A"
   } else {
@@ -685,19 +726,30 @@ output$variant_annotation_plot <- renderPlot({
   
   drug_colors <- c("#4db3d9", "#f46a2a", "#e83e8c", "#4f79bd", "#a6b93f")
   
+  max_count <- max(plot_df$n, na.rm = TRUE)
+  x_breaks <- 0:max(1, max_count)
+  
   ggplot(plot_df, aes(x = drug, y = n, fill = drug)) +
     geom_col(width = 0.72) +
     coord_flip() +
     scale_fill_manual(values = drug_colors[seq_len(nrow(plot_df))], guide = "none") +
+    scale_y_continuous(
+      breaks = x_breaks,
+      labels = as.integer(x_breaks),
+      limits = c(0, max(x_breaks)),
+      expand = expansion(mult = c(0, 0.02))
+    ) +
     labs(
-      x = NULL,
-      y = NULL
+      x = "Drug",
+      y = "Number of variant annotations"
     ) +
     theme_minimal(base_size = 13) +
     theme(
       plot.title = element_blank(),
       axis.text.y = element_text(size = 13),
       axis.text.x = element_text(size = 11),
+      axis.title.x = element_text(size = 12),
+      axis.title.y = element_text(size = 12),
       panel.grid.minor = element_blank(),
       panel.grid.major.y = element_blank()
     )
@@ -1035,91 +1087,35 @@ output$download_druglabel_csv <- downloadHandler(
   }
 )
 
-# observeEvent(input$pharmgkb_from_table, {
-#   req(input$pharmgkb_from_table)
-#   
-#   allele_clicked <- trimws(input$pharmgkb_from_table)
-#   
-#   updateTextInput(
-#     session,
-#     inputId = "allele_input",
-#     value = allele_clicked
-#   )
-#   
-#   selected_allele(allele_clicked)
-# })
-
 observeEvent(input$pharmgkb_from_table, {
   req(input$pharmgkb_from_table)
   
-  allele_clicked <- trimws(input$pharmgkb_from_table)
+  allele_clicked <- trimws(as.character(input$pharmgkb_from_table))
   
   pharmgkb_panel_visible(TRUE)
   
-  updateTextInput(
-    session,
-    inputId = "allele_input",
-    value = allele_clicked
-  )
+  if ("allele_input" %in% names(input)) {
+    updateTextInput(
+      session,
+      inputId = "allele_input",
+      value = allele_clicked
+    )
+  }
   
   selected_allele(allele_clicked)
   
-  updateTabsetPanel(session, "pharmgkb_tabs", selected = "Summary Annotations")
+  session$onFlushed(function() {
+    updateTabsetPanel(session, "pharmgkb_tabs", selected = "Summary Annotations")
+    session$sendCustomMessage("resetPharmgkbButtons", list())
+  }, once = TRUE)
 })
 
-# output$pharmgkb_box_ui <- renderUI({
-#   
-#   if (!pharmgkb_panel_visible()) {
-#     return(NULL)
-#   }
-#   
-#   column(
-#     width = 12,
-#     box(
-#       id = "pharmgkb_box",
-#       height = "auto",
-#       width = 12,
-#       elevation = 4,
-#       title = strong("PharmGKB Database"),
-#       collapsible = TRUE,
-#       solidHeader = FALSE,
-#       maximizable = TRUE,
-#       status = "warning",
-#       
-#       tabsetPanel(
-#         id = "pharmgkb_tabs",
-#         type = "tabs",
-#         
-#         tabPanel(
-#           "Summary Annotations",
-#           tags$br(),
-#           uiOutput("summary_annotation_overview"),
-#           reactable::reactableOutput("summary_annotation_tbl")
-#         ),
-#         
-#         tabPanel(
-#           "Variant Annotations",
-#           tags$br(),
-#           uiOutput("variant_annotation_overview"),
-#           reactable::reactableOutput("variant_annotation_tbl")
-#         ),
-#         
-#         tabPanel(
-#           "Drug Label Annotations",
-#           tags$br(),
-#           uiOutput("druglabel_annotation_overview"),
-#           reactable::reactableOutput("druglabel_annotation_tbl")
-#         )
-#       )
-#     )
-#   )
-# })
 output$pharmgkb_box_ui <- renderUI({
-  
+
   if (!pharmgkb_panel_visible()) {
     return(NULL)
   }
-  
+
   column(
     width = 12,
     box(
@@ -1132,27 +1128,27 @@ output$pharmgkb_box_ui <- renderUI({
       solidHeader = FALSE,
       maximizable = TRUE,
       status = "warning",
-      
+
       div(
         style = "width:100%; display:block;",
         tabsetPanel(
           id = "pharmgkb_tabs",
           type = "tabs",
-          
+
           tabPanel(
             "Summary Annotations",
             tags$br(),
             uiOutput("summary_annotation_overview"),
             reactable::reactableOutput("summary_annotation_tbl")
           ),
-          
+
           tabPanel(
             "Variant Annotations",
             tags$br(),
             uiOutput("variant_annotation_overview"),
             reactable::reactableOutput("variant_annotation_tbl")
           ),
-          
+
           tabPanel(
             "Drug Label Annotations",
             tags$br(),

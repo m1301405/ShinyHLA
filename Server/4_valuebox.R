@@ -35,7 +35,7 @@ observeEvent(input$hla_typing_button, {
   }
   
   observeEvent(input$hla_typing_button, {
-    package_value(isolate(input$package))  # 讓 UI/conditionalPanel 依賴一致
+    package_value(isolate(input$package)) 
     
     output$summary_boxes <- renderUI({
       render_summary_boxes_ui(

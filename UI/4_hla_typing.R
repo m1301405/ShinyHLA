@@ -218,49 +218,9 @@ tabItem(tabName = "hla",
           )
         ),
         fluidRow(
-          uiOutput("pharmgkb_box_ui")
+          div(
+            id = "pharmgkb_container",
+            uiOutput("pharmgkb_box_ui")
+          )
         )
-        # fluidRow(
-        #   column(
-        #     width = 12,
-        #     box(
-        #       id = "pharmgkb_box",
-        #       height = "auto",
-        #       width = 12,
-        #       elevation = 4,
-        #       title = strong("PharmGKB Database"),
-        #       collapsible = TRUE,
-        #       solidHeader = FALSE,
-        #       maximizable = TRUE,
-        #       status = "warning",
-        #       
-        #       tabsetPanel(
-        #         id = "pharmgkb_tabs",
-        #         type = "tabs",
-        #         
-        #         tabPanel(
-        #           "Summary Annotations",
-        #           tags$br(),
-        #           uiOutput("summary_annotation_overview"),
-        #           reactable::reactableOutput("summary_annotation_tbl")
-        #         ),
-        #         
-        #         tabPanel(
-        #           "Variant Annotations",
-        #           tags$br(),
-        #           uiOutput("variant_annotation_overview"),
-        #           reactable::reactableOutput("variant_annotation_tbl")
-        #         ),
-        #         
-        #         tabPanel(
-        #           "Drug Label Annotations",
-        #           tags$br(),
-        #           uiOutput("druglabel_annotation_overview"),
-        #           reactable::reactableOutput("druglabel_annotation_tbl")
-        #         )
-        #       )
-        #     )
-        #   )
-        # )
-        
 )

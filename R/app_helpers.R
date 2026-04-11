@@ -1,5 +1,91 @@
-## =====================================================
 ## app_helpers.R
+# ============================================================
+# Demo / Reload common settings
+# ============================================================
+DEMO_LIST_CSV <- "/root/shiny/Demo_list.csv"
+DEMO_ROOT     <- "/root/shiny/Demo"
+HISTORY_ROOT  <- "/root/shiny/History"
+
+demo_mode <- reactiveVal(FALSE)
+
+# ------------------------------------------------------------
+# Helper: Read Demo list
+# ------------------------------------------------------------
+read_demo_list <- function() {
+  if (!file.exists(DEMO_LIST_CSV)) {
+    stop(sprintf("Demo list file not found: %s", DEMO_LIST_CSV))
+  }
+  
+  df <- read.csv(DEMO_LIST_CSV, stringsAsFactors = FALSE, sep = ",")
+  
+  required_cols <- c("NGS_type", "IMGTHLA_version", "Typing_package", "Demo_file_folder")
+  missing_cols <- setdiff(required_cols, colnames(df))
+  if (length(missing_cols) > 0) {
+    stop(sprintf(
+      "Demo list is missing required columns: %s",
+      paste(missing_cols, collapse = ", ")
+    ))
+  }
+  
+  df
+}
+
+# ------------------------------------------------------------
+# Helper: NGS_type -> Demo folder name
+# WES -> wes, RNA-seq -> rna-seq
+# ------------------------------------------------------------
+ngs_to_demo_subdir <- function(ngs_type) {
+  ngs_type <- trimws(as.character(ngs_type))
+  
+  if (identical(ngs_type, "WES")) {
+    return("wes")
+  }
+  if (identical(ngs_type, "RNA-seq")) {
+    return("rna-seq")
+  }
+  
+  stop(sprintf("Unsupported NGS_type for Demo path routing: %s", ngs_type))
+}
+
+# ------------------------------------------------------------
+# Helper: 根據條件查找唯一 Demo_file_folder
+# ------------------------------------------------------------
+resolve_demo_folder <- function(ngs_type, version, tool) {
+  demo_df <- read_demo_list()
+  
+  matched <- subset(
+    demo_df,
+    trimws(NGS_type) == trimws(ngs_type) &
+      trimws(IMGTHLA_version) == trimws(version) &
+      trimws(Typing_package) == trimws(tool)
+  )
+  
+  if (nrow(matched) == 0) {
+    stop(sprintf(
+      "No Demo result found for NGS_type=%s, IMGTHLA_version=%s, Typing_package=%s",
+      ngs_type, version, tool
+    ))
+  }
+  
+  if (nrow(matched) > 1) {
+    stop(sprintf(
+      "Multiple Demo results found for NGS_type=%s, IMGTHLA_version=%s, Typing_package=%s",
+      ngs_type, version, tool
+    ))
+  }
+  
+  matched$Demo_file_folder[[1]]
+}
+
+# ------------------------------------------------------------
+# Helper: Demo target_dir
+# ------------------------------------------------------------
+build_demo_target_dir <- function(ngs_type, demo_file_folder) {
+  subdir <- ngs_to_demo_subdir(ngs_type)
+  file.path(DEMO_ROOT, subdir, demo_file_folder)
+}
+
+## =====================================================
 ## Shared helper functions for ShinyHLA + PharmGKB
 ## =====================================================
 
@@ -407,39 +493,11 @@ clean_variant_phenotype <- function(x) {
   trimws(x)
 }
 
-# split_clean_variant_phenotypes <- function(x) {
-#   x <- safe_trim(x)
-#   x <- x[!is.na(x) & x != ""]
-#   if (length(x) == 0) return(character(0))
-#   
-#   x <- gsub(",[[:space:]]*Disease:", "; Disease:", x)
-#   x <- gsub(",[[:space:]]*Side Effect:", "; Side Effect:", x)
-#   x <- gsub(",[[:space:]]*Other:", "; Other:", x)
-#   x <- gsub(",[[:space:]]*Efficacy:", "; Efficacy:", x)
-#   x <- gsub(",[[:space:]]*PK:", "; PK:", x)
-#   
-#   vals <- unlist(strsplit(x, ";"))
-#   vals <- trimws(vals)
-#   vals <- vals[vals != ""]
-#   
-#   vals <- gsub("^Side Effect:", "", vals)
-#   vals <- gsub("^Disease:", "", vals)
-#   vals <- gsub("^Other:", "", vals)
-#   vals <- gsub("^Efficacy:", "", vals)
-#   vals <- gsub("^PK:", "", vals)
-#   
-#   vals <- trimws(vals)
-#   vals <- vals[vals != ""]
-#   vals <- unique(vals)
-#   
-#   vals
-# }
 split_clean_variant_phenotypes <- function(x) {
   x <- safe_trim(x)
   x <- x[!is.na(x) & x != ""]
   if (length(x) == 0) return(character(0))
   
-  ## 將 phenotype category 前面的逗號改成真正分隔符
   x <- gsub(',[[:space:]]*"?[[:space:]]*Disease:', '; Disease:', x)
   x <- gsub(',[[:space:]]*"?[[:space:]]*Side Effect:', '; Side Effect:', x)
   x <- gsub(',[[:space:]]*"?[[:space:]]*Other:', '; Other:', x)
@@ -450,19 +508,16 @@ split_clean_variant_phenotypes <- function(x) {
   vals <- trimws(vals)
   vals <- vals[vals != ""]
   
-  ## 去除前後引號
   vals <- gsub('^"+|"+$', "", vals)
   vals <- gsub("^'+|'+$", "", vals)
   vals <- trimws(vals)
   
-  ## 去除 prefix
   vals <- gsub("^Side Effect:", "", vals)
   vals <- gsub("^Disease:", "", vals)
   vals <- gsub("^Other:", "", vals)
   vals <- gsub("^Efficacy:", "", vals)
   vals <- gsub("^PK:", "", vals)
   
-  ## 再清一次
   vals <- gsub('^"+|"+$', "", vals)
   vals <- gsub("^'+|'+$", "", vals)
   vals <- trimws(vals)
@@ -472,6 +527,7 @@ split_clean_variant_phenotypes <- function(x) {
   
   vals
 }
+
 ## =====================================================
 ## Phenotype helpers
 ## =====================================================
@@ -632,10 +688,8 @@ normalize_typing_allele_to_pharmgkb <- function(x) {
   
   if (is.na(x) || x == "") return(NA_character_)
   
-  ## 移除可能已存在的 HLA- 前綴
   x <- sub("^HLA-", "", x, ignore.case = TRUE)
   
-  ## 必須要有 *
   if (!grepl("\\*", x)) return(NA_character_)
   
   gene_part <- sub("\\*.*$", "", x)
@@ -655,34 +709,40 @@ normalize_typing_allele_to_pharmgkb <- function(x) {
 make_pharmgkb_row_button <- function(allele_query) {
   if (is.na(allele_query) || allele_query == "") return("")
   
+  allele_escaped <- gsub("'", "\\\\'", allele_query)
+  
+  onclick_js <- sprintf(
+    paste0(
+      "this.disabled = true;",
+      "this.innerHTML = '<i class=\"fas fa-spinner fa-spin\"></i> Searching...';",
+      "Shiny.setInputValue(\"pharmgkb_from_table\", \"%s\", {priority: \"event\"});"
+    ),
+    allele_escaped
+  )
+  
   as.character(
     tags$button(
       type = "button",
-      class = "btn btn-xs btn-danger",
+      class = "btn btn-xs btn-danger pharmgkb-search-btn",
       title = "Click to load PharmGKB annotation",
-      onclick = sprintf(
-        "Shiny.setInputValue('pharmgkb_from_table', '%s', {priority: 'event'})",
-        allele_query
-      ),
+      onclick = onclick_js,
       "Search"
     )
   )
 }
 
+
 prepare_hla_table_for_display <- function(df) {
   df <- as.data.frame(df, stringsAsFactors = FALSE)
   
-  ## 若是 reload 舊資料，先把舊的 display 欄位移掉
   drop_cols <- intersect(c("PharmGKB", "pharmgkb_allele"), colnames(df))
   if (length(drop_cols) > 0) {
     df <- df[, setdiff(colnames(df), drop_cols), drop = FALSE]
   }
   
-  ## 只接受乾淨的核心欄位
   core_cols <- c("Allele", "nucleotide", "protein")
   df <- df[, intersect(core_cols, colnames(df)), drop = FALSE]
   
-  ## 補 display 用欄位
   df$pharmgkb_allele <- vapply(
     df$Allele,
     normalize_typing_allele_to_pharmgkb,
@@ -695,7 +755,6 @@ prepare_hla_table_for_display <- function(df) {
     FUN.VALUE = character(1)
   )
   
-  ## 欄位順序
   df <- df[, c("PharmGKB", "Allele", "nucleotide", "protein", "pharmgkb_allele"), drop = FALSE]
   
   df

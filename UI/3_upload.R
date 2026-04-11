@@ -77,7 +77,7 @@ tabItem(tabName = "upload",
                     class = "btn-info"
                   )
                 ),
-                tags$p("Hint: Loading a JobID will retrieve previous analysis tables, FASTA files, and IGV tracks.", 
+                tags$p("Hint: Loading a JobID will retrieve previous analysis tables and FASTA files", 
                        style = "font-size: 12px; color: #666; font-style: italic;")
               ),
               conditionalPanel(
@@ -94,7 +94,7 @@ tabItem(tabName = "upload",
                     style = "margin-left: 10px;",
                     bs4Dash::tooltip(
                       icon("info-circle"),
-                      title = "Check total depth, coverage, and mean depth per HLA allele to ensure data quality.",
+                      title = "Check total depth, coverage, and mean depth in HLA regions to ensure data quality. Note: QC is currently available only for GRCh38-aligned BAM/CRAM files; non-GRCh38 inputs may return zero or inaccurate results.",
                       placement = "right"
                     )
                   )
@@ -107,7 +107,7 @@ tabItem(tabName = "upload",
           column(
             width = 12,
             conditionalPanel(
-              condition = "input.fastq_upload_button >= 1 || input.bam_upload_button >= 1 || input.demo_upload_button >=1",
+              condition = "input.upload_choice != 'jobid' && (input.fastq_upload_button >= 1 || input.bam_upload_button >= 1 || input.demo_upload_button >= 1)",
               div(
                 style = "display: flex; align-items: center; padding: 10px;",
                 div(
@@ -122,12 +122,13 @@ tabItem(tabName = "upload",
                     bs4Dash::tooltip(
                       icon("exclamation-triangle"),
                       title = "Only the most recently uploaded file is retained for analysis. To re-analyze a previously uploaded file, please re-upload it.",
-                      placement = "right")
+                      placement = "right"
                     )
                   )
                 )
               ),
-            tags$div(style = "height: 20px;")
+              tags$div(style = "height: 20px;")
+              )
             )
           ),
         fluidRow(
