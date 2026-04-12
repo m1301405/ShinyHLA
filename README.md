@@ -1,8 +1,8 @@
 # ShinyHLA: an R/Shiny-based web application for HLA typing of NGS data
 
-![Docker](https://img.shields.io/badge/Docker-b0909132%2Fshinyhla-blue)
+[![Docker](https://img.shields.io/badge/Docker-b0909132%2Fshinyhla-blue)](https://hub.docker.com/r/b0909132/shinyhla)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Documentation](https://img.shields.io/badge/docs-Notion-blue)
+[![Documentation](https://img.shields.io/badge/docs-Notion-blue)](https://animated-reminder-9ff.notion.site/ebd//7b6f9fcf9d034442b2b64c89f8662a6c)
 
 ShinyHLA is an R/Shiny-based web application designed to simplify HLA typing analysis from next-generation sequencing (NGS) data.  
 The platform integrates multiple widely used HLA typing algorithms and supports multiple versions of the IPD-IMGT/HLA reference database within a unified graphical interface.
@@ -22,13 +22,13 @@ ShinyHLA integrates several widely used HLA typing algorithms within a single gr
 - [HLA-HD v1.7.0](https://w3.genome.med.kyoto-u.ac.jp/HLA-HD/)
 - [T1K v1.0.8](https://github.com/mourisl/T1K)
 
-These tools are bundled inside the ShinyHLA Docker environment and do not require manual installation.
+These tools are bundled inside the ShinyHLA Docker environment and **do not require manual installation**.
 
 ---
 
 ### Multi-version IPD-IMGT/HLA database support
 
-ShinyHLA supports multiple versions of the IPD-IMGT/HLA reference database, allowing users to evaluate potential differences in allele assignments caused by database updates.
+ShinyHLA supports multiple versions of the IPD-IMGT/HLA database, allowing users to evaluate potential differences in allele assignments caused by database updates.
 
 ---
 
@@ -67,7 +67,7 @@ Three annotation modules are available:
 
 # Online Web Application
 
-ShinyHLA is freely available online at:
+ShinyHLA is freely available as an online web server for testing and demonstration:
 
 https://shiny.cgu.edu.tw/app/shinyHLA
 
@@ -75,11 +75,11 @@ The web server allows users to perform HLA typing directly through a graphical i
 
 Users can:
 
-- Upload WES or RNA-seq data
-- Perform HLA typing using multiple tools
-- Compare results across IPD-IMGT/HLA database versions
-- Explore PharmGKB pharmacogenomic annotations
-- Export typing results and integrated comparison tables
+- Upload WES or RNA-seq data  
+- Perform HLA typing using multiple tools  
+- Compare results across IPD-IMGT/HLA database versions  
+- Explore PharmGKB pharmacogenomic annotations  
+- Export typing results and integrated comparison tables  
 
 ---
 
@@ -96,7 +96,7 @@ docker pull b0909132/shinyhla:latest
 ### 2. Run the container
 
 ```bash
-docker run -p 3838:3838 b0909132/shinyhla:latest
+docker run -p 3838:3838 --name shinyhla b0909132/shinyhla:latest
 ```
 
 ### 3. Access the ShinyHLA interface
@@ -126,7 +126,7 @@ The preprocessing module is provided as a separate Docker-based web application.
 ### 1. Pull the preprocessing image
 
 ```bash
-docker pull b0909132/shinyhla_preprocessing
+docker pull b0909132/shinyhla_preprocessing:latest
 ```
 
 ### 2. Launch the preprocessing container
@@ -137,7 +137,7 @@ After downloading the image:
 - Navigate to the **Images** tab
 - Locate `b0909132/shinyhla_preprocessing`
 - Click **Run**
-- Assign a local port (e.g., `3838`)
+- Assign a local port (e.g., `3839`)
 - Start the container
 
 ### 3. Access the preprocessing web interface
@@ -145,7 +145,7 @@ After downloading the image:
 Once the container is running, open:
 
 ```
-http://localhost:3838
+http://localhost:3839
 ```
 
 ### 4. Perform preprocessing through the GUI
@@ -172,12 +172,12 @@ https://animated-reminder-9ff.notion.site/ebd//7b6f9fcf9d034442b2b64c89f8662a6c
 
 The documentation includes:
 
-- Implementation details of the ShinyHLA framework
-- Step-by-step user guides
-- Demonstration using HG00096 datasets
-- PharmGKB annotation exploration
-- Docker deployment instructions
-- Preprocessing workflow
+- Implementation details of the ShinyHLA framework  
+- Step-by-step user guides  
+- Demonstration using HG00096 datasets  
+- PharmGKB annotation exploration  
+- Docker deployment instructions  
+- Preprocessing workflow  
 
 ---
 
@@ -187,15 +187,17 @@ ShinyHLA includes built-in demonstration datasets for interactive exploration.
 
 The demo data are based on the **HG00096 sample**:
 
-- Whole-exome sequencing (WES) from the **1000 Genomes Project**
+- Whole-exome sequencing (WES) from the **1000 Genomes Project**  
 - RNA-seq data from the **Geuvadis consortium**
+
+Precomputed typing results are included for multiple IPD-IMGT/HLA versions (**v3.14.0 and v3.49–v3.60**) to enable instant demonstration without running the full analysis pipeline.
 
 These datasets demonstrate:
 
-- HLA typing using multiple tools
-- Cross-tool comparison
-- Database version comparison
-- PharmGKB pharmacogenomic annotation exploration
+- HLA typing using multiple tools  
+- Cross-tool comparison  
+- Database version comparison  
+- PharmGKB pharmacogenomic annotation exploration  
 
 ---
 
