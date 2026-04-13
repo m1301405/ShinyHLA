@@ -23,13 +23,6 @@ observeEvent(input$demo_upload_button, {
     demo_uploaded(TRUE)
     demo_selected_ngs(input$demo_choice)
     
-    updateSelectInput(
-      session,
-      "sequence",
-      choices = c(input$demo_choice),
-      selected = input$demo_choice
-    )
-    
     shinyalert("Success", "WES Demo File Upload Successful.", type = "success")
     
   } else if (input$demo_choice == "RNA-seq") {
@@ -44,13 +37,6 @@ observeEvent(input$demo_upload_button, {
     source_mode("demo")
     demo_uploaded(TRUE)
     demo_selected_ngs(input$demo_choice)
-    
-    updateSelectInput(
-      session,
-      "sequence",
-      choices = c(input$demo_choice),
-      selected = input$demo_choice
-    )
     
     shinyalert("Success", "RNA-seq Demo File Upload Successful.", type = "success")
   }

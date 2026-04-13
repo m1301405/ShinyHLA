@@ -401,16 +401,20 @@ output$variant_annotation_overview <- renderUI({
     )
   }
   
-  drug_vec <- expand_drug_vector(vdat$drugs)
+  drug_long <- make_variant_drug_long(
+    drug_strings = vdat$drugs,
+    record_ids   = vdat$variant_annotation_id
+  )
+  
   lit_chr <- safe_trim(vdat$pmid)
   pheno_vec <- split_clean_variant_phenotypes(vdat$phenotype)
   pop_chr <- safe_trim(vdat$biogeographical_groups)
   
   total_var <- length(unique(vdat$variant_annotation_id))
-  total_drugs <- length(unique(drug_vec))
+  total_drugs <- length(unique(drug_long$drug))
   total_pmids <- length(unique(split_clean_unique(lit_chr)))
   
-  top_drugs_df <- make_top_drugs_df(vdat$drugs, top_n = 5)
+  top_drugs_df <- make_top_drugs_from_long(drug_long, top_n = 5)
   
   top_drugs_text <- if (nrow(top_drugs_df) == 0) {
     "N/A"
@@ -718,7 +722,12 @@ output$variant_annotation_plot <- renderPlot({
   
   vdat <- unique(vdat)
   
-  plot_df <- make_top_drugs_df(vdat$drugs, top_n = 5)
+  drug_long <- make_variant_drug_long(
+    drug_strings = vdat$drugs,
+    record_ids   = vdat$variant_annotation_id
+  )
+  
+  plot_df <- make_top_drugs_from_long(drug_long, top_n = 5)
   
   if (nrow(plot_df) == 0) return(NULL)
   

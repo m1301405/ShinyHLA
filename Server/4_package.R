@@ -141,7 +141,7 @@ observeEvent(input$hla_typing_button, {
     w$show()
     on.exit(w$hide(), add = TRUE)
     
-    Sys.sleep(15)
+    Sys.sleep(5)
     
     demo_archive <- tryCatch(
       archive_demo_result_to_history(

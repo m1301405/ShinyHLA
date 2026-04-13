@@ -29,6 +29,15 @@ read_demo_list <- function() {
   
   df
 }
+# ------------------------------------------------------------
+# Determine "Drug Name" helper
+# ------------------------------------------------------------
+is_valid_drug_name <- function(x) {
+  x_norm <- normalize_drug_name(x)
+  if (is.na(x_norm) || x_norm == "") return(FALSE)
+  
+  any(normalize_drug_name(drugs$Name) == x_norm, na.rm = TRUE)
+}
 
 # ------------------------------------------------------------
 # Helper: NGS_type -> Demo folder name
@@ -48,7 +57,7 @@ ngs_to_demo_subdir <- function(ngs_type) {
 }
 
 # ------------------------------------------------------------
-# Helper: 根據條件查找唯一 Demo_file_folder
+# Helper: Demo_file_folder
 # ------------------------------------------------------------
 resolve_demo_folder <- function(ngs_type, version, tool) {
   demo_df <- read_demo_list()
@@ -297,10 +306,12 @@ clean_quoted_text_block <- function(x) {
 ## =====================================================
 ## Drug helpers
 ## =====================================================
-
 normalize_drug_name <- function(x) {
   x <- safe_trim(x)
   x <- gsub('^"(.*)"$', "\\1", x)
+  x <- gsub("^'(.*)'$", "\\1", x)
+  x <- gsub("\u00A0", " ", x, fixed = TRUE)
+  x <- gsub("[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]", "-", x, perl = TRUE)
   x <- gsub("\\s+", " ", x)
   x <- trimws(x)
   x <- tolower(x)
@@ -316,6 +327,13 @@ split_outside_quotes <- function(x, separators = c(",", ";")) {
   out_all <- character(0)
   
   for (one_string in x) {
+    one_string <- trimws(one_string)
+    
+    one_string <- gsub('^"(.*)"$', "\\1", one_string)
+    one_string <- gsub("^'(.*)'$", "\\1", one_string)
+    
+    one_string <- gsub("\u00A0", " ", one_string, fixed = TRUE)
+    
     chars <- strsplit(one_string, "", fixed = TRUE)[[1]]
     buf <- character(0)
     pieces <- character(0)
@@ -363,14 +381,123 @@ split_outside_quotes <- function(x, separators = c(",", ";")) {
   
   out_all <- trimws(out_all)
   out_all <- gsub('^"(.*)"$', "\\1", out_all)
+  out_all <- gsub("^'(.*)'$", "\\1", out_all)
   out_all <- gsub("\\s+", " ", out_all)
   out_all <- out_all[out_all != ""]
   out_all
 }
 
-split_drug_names <- function(x) {
-  split_outside_quotes(x, separators = c(",", ";"))
+make_variant_drug_long <- function(drug_strings, record_ids = NULL) {
+  if (is.null(record_ids)) {
+    record_ids <- seq_along(drug_strings)
+  }
+  
+  out <- Map(function(drug_text, rid) {
+    vals <- split_drug_names_unique(drug_text)
+    vals <- safe_trim(vals)
+    vals <- vals[!is.na(vals) & vals != ""]
+    
+    if (length(vals) == 0) return(NULL)
+    
+    data.frame(
+      variant_annotation_id = as.character(rid),
+      drug = vals,
+      stringsAsFactors = FALSE
+    )
+  }, drug_strings, record_ids)
+  
+  out <- out[!vapply(out, is.null, logical(1))]
+  
+  if (length(out) == 0) {
+    return(data.frame(
+      variant_annotation_id = character(0),
+      drug = character(0),
+      stringsAsFactors = FALSE
+    ))
+  }
+  
+  dplyr::bind_rows(out) %>%
+    dplyr::distinct(variant_annotation_id, drug, .keep_all = TRUE)
 }
+
+make_top_drugs_from_long <- function(drug_long, top_n = 5) {
+  if (is.null(drug_long) || nrow(drug_long) == 0) {
+    return(data.frame(drug = character(0), n = integer(0), stringsAsFactors = FALSE))
+  }
+  
+  drug_long %>%
+    dplyr::filter(!is.na(drug), drug != "", drug != "N/A") %>%
+    dplyr::count(drug, sort = TRUE) %>%
+    dplyr::arrange(dplyr::desc(n), drug) %>%
+    dplyr::slice_head(n = top_n)
+}
+
+
+split_drug_names <- function(x) {
+  x <- safe_trim(x)
+  x <- x[!is.na(x) & x != ""]
+  if (length(x) == 0) return(character(0))
+  
+  out <- character(0)
+  
+  for (one in x) {
+    one <- trimws(one)
+    one <- gsub('^"(.*)"$', "\\1", one)
+    one <- gsub("^'(.*)'$", "\\1", one)
+    one <- trimws(one)
+    
+    # --------------------------------------------------
+    # 1) whole string is already a valid drug name
+    # --------------------------------------------------
+    if (is_valid_drug_name(one)) {
+      out <- c(out, one)
+      next
+    }
+    
+    # --------------------------------------------------
+    # 2) split by semicolon first
+    # --------------------------------------------------
+    semi_parts <- split_outside_quotes(one, separators = ";")
+    
+    # if semicolon split produced multiple parts, process each part
+    if (length(semi_parts) > 1) {
+      for (part in semi_parts) {
+        part <- trimws(part)
+        
+        if (is_valid_drug_name(part)) {
+          out <- c(out, part)
+        } else {
+          # try comma split only if the whole part is not a valid drug name
+          comma_parts <- split_outside_quotes(part, separators = ",")
+          comma_parts <- trimws(comma_parts)
+          comma_parts <- comma_parts[comma_parts != ""]
+          out <- c(out, comma_parts)
+        }
+      }
+      next
+    }
+    
+    # --------------------------------------------------
+    # 3) no semicolon structure -> try comma logic
+    # --------------------------------------------------
+    if (is_valid_drug_name(one)) {
+      out <- c(out, one)
+    } else {
+      comma_parts <- split_outside_quotes(one, separators = ",")
+      comma_parts <- trimws(comma_parts)
+      comma_parts <- comma_parts[comma_parts != ""]
+      out <- c(out, comma_parts)
+    }
+  }
+  
+  out <- trimws(out)
+  out <- out[out != ""]
+  unique(out)
+}
+
+# split_drug_names <- function(x) {
+#   split_outside_quotes(x, separators = ";")
+# }
 
 split_drug_names_unique <- function(x) {
   unique(split_drug_names(x))

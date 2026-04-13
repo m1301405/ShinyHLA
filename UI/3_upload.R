@@ -46,7 +46,7 @@ tabItem(tabName = "upload",
                     "Demo File", 
                     bs4Dash::tooltip(
                       icon("info-circle"),
-                      title = "Demo uses HG00096 data: WES (aligned BAM) and RNA-Seq (raw FASTQ) for HLA typing.",
+                      title = "Demo uses the HG00096 dataset (WES and RNA-seq) with precomputed HLA typing results for rapid exploration of ShinyHLA features.",
                       placement = "right"
                     )
                   ),

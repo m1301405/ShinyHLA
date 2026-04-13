@@ -1,6 +1,12 @@
 # ============================================================
 # Mode-aware cascade choices
 # ============================================================
+normal_sequence_choices <- reactive({
+  HLA_typing %>%
+    dplyr::pull(NGS_type) %>%
+    unique()
+})
+
 filtered_imagthla <- reactive({
   req(input$sequence)
   
@@ -52,33 +58,180 @@ filtered_package <- reactive({
 })
 
 observe({
-  if (!identical(source_mode(), "demo")) return()
+  mode <- source_mode()
   
-  selected_ngs <- demo_selected_ngs()
-  if (is.null(selected_ngs) || !nzchar(selected_ngs)) return()
-  
-  updateSelectInput(
-    session,
-    "sequence",
-    choices = c(selected_ngs),
-    selected = selected_ngs
-  )
+  if (identical(mode, "demo")) {
+    selected_ngs <- demo_selected_ngs()
+    req(selected_ngs)
+    
+    updateSelectInput(
+      session,
+      "sequence",
+      choices  = c(selected_ngs),
+      selected = selected_ngs
+    )
+    
+  } else {
+    normal_choices <- normal_sequence_choices()
+    req(length(normal_choices) > 0)
+    
+    current_selected <- isolate(input$sequence)
+    
+    selected_value <- if (!is.null(current_selected) && current_selected %in% normal_choices) {
+      current_selected
+    } else {
+      normal_choices[[1]]
+    }
+    
+    updateSelectInput(
+      session,
+      "sequence",
+      choices  = normal_choices,
+      selected = selected_value
+    )
+  }
 })
 
 observe({
   req(input$sequence)
-  updateSelectInput(session, "imgthla", choices = filtered_imagthla())
+  
+  choices <- filtered_imagthla()
+  req(length(choices) > 0)
+  
+  selected_value <- if (!is.null(input$imgthla) && input$imgthla %in% choices) {
+    input$imgthla
+  } else {
+    choices[[1]]
+  }
+  
+  updateSelectInput(
+    session,
+    "imgthla",
+    choices = choices,
+    selected = selected_value
+  )
 })
 
 observe({
   req(input$sequence, input$imgthla)
-  updateSelectInput(session, "package", choices = filtered_package())
+  
+  choices <- filtered_package()
+  req(length(choices) > 0)
+  
+  selected_value <- if (!is.null(input$package) && input$package %in% choices) {
+    input$package
+  } else {
+    choices[[1]]
+  }
+  
+  updateSelectInput(
+    session,
+    "package",
+    choices = choices,
+    selected = selected_value
+  )
 })
 
 observeEvent(input$imgthla, {
   req(input$imgthla)
-  updateSelectInput(session, "package", choices = filtered_package())
+  
+  choices <- filtered_package()
+  req(length(choices) > 0)
+  
+  selected_value <- if (!is.null(input$package) && input$package %in% choices) {
+    input$package
+  } else {
+    choices[[1]]
+  }
+  
+  updateSelectInput(
+    session,
+    "package",
+    choices = choices,
+    selected = selected_value
+  )
 })
+
+# filtered_imagthla <- reactive({
+#   req(input$sequence)
+#   
+#   if (identical(source_mode(), "demo")) {
+#     demo_df <- read_demo_list()
+#     
+#     selected_ngs <- demo_selected_ngs()
+#     req(selected_ngs)
+#     
+#     demo_df %>%
+#       dplyr::filter(NGS_type %in% selected_ngs) %>%
+#       dplyr::pull(IMGTHLA_version) %>%
+#       unique() %>%
+#       sort(decreasing = TRUE)
+#   } else {
+#     HLA_typing %>%
+#       dplyr::filter(NGS_type %in% input$sequence) %>%
+#       dplyr::pull(IMGTHLA_version) %>%
+#       unique() %>%
+#       sort(decreasing = TRUE)
+#   }
+# })
+# 
+# filtered_package <- reactive({
+#   req(input$sequence, input$imgthla)
+#   
+#   if (identical(source_mode(), "demo")) {
+#     demo_df <- read_demo_list()
+#     
+#     selected_ngs <- demo_selected_ngs()
+#     req(selected_ngs)
+#     
+#     demo_df %>%
+#       dplyr::filter(
+#         NGS_type %in% selected_ngs,
+#         IMGTHLA_version %in% input$imgthla
+#       ) %>%
+#       dplyr::pull(Typing_package) %>%
+#       unique()
+#   } else {
+#     HLA_typing %>%
+#       dplyr::filter(
+#         NGS_type %in% input$sequence,
+#         IMGTHLA_version %in% input$imgthla
+#       ) %>%
+#       dplyr::pull(Typing_package) %>%
+#       unique()
+#   }
+# })
+# 
+# observe({
+#   if (!identical(source_mode(), "demo")) return()
+#   
+#   selected_ngs <- demo_selected_ngs()
+#   if (is.null(selected_ngs) || !nzchar(selected_ngs)) return()
+#   
+#   updateSelectInput(
+#     session,
+#     "sequence",
+#     choices = c(selected_ngs),
+#     selected = selected_ngs
+#   )
+# })
+# 
+# observe({
+#   req(input$sequence)
+#   updateSelectInput(session, "imgthla", choices = filtered_imagthla())
+# })
+# 
+# observe({
+#   req(input$sequence, input$imgthla)
+#   updateSelectInput(session, "package", choices = filtered_package())
+# })
+# 
+# observeEvent(input$imgthla, {
+#   req(input$imgthla)
+#   updateSelectInput(session, "package", choices = filtered_package())
+# })
+
+
 # ============================================================
 tmp_dir <- tempdir()
 
