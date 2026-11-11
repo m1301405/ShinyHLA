@@ -458,6 +458,18 @@ observeEvent(input$hla_typing_button, {
       system(paste("/arcasHLA/arcasHLA genotype59 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     } else if (input$imgthla == "v3.60.0") {
       system(paste("/arcasHLA/arcasHLA genotype60 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
+    } else if (input$imgthla == "v3.61.0") {
+      system(paste("/arcasHLA/arcasHLA genotype61 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
+    } else if (input$imgthla == "v3.62.0") {
+      system(paste("/arcasHLA/arcasHLA genotype62 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
+    } else if (input$imgthla == "v3.63.0") {
+      system(paste("/arcasHLA/arcasHLA genotype63 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
+    } else if (input$imgthla == "v3.64.0") {
+      system(paste("/arcasHLA/arcasHLA genotype64 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
+    } else if (input$imgthla == "v3.65.0") {
+      system(paste("/arcasHLA/arcasHLA genotype65 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
+    } else if (input$imgthla == "v3.66.0") {
+      system(paste("/arcasHLA/arcasHLA genotype66 ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz -g A,B,C,DPB1,DQB1,DQA1,DRB1 -o ./Output/arcashla -t ", num_cores, " -v", sep = ""))
     }
     #----------------------------------------------------------
     arcashla_genotype_path <- paste("./Output/arcashla/sample_1.genotype.json", sep = "")
