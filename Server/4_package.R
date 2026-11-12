@@ -1067,7 +1067,7 @@ observeEvent(input$hla_typing_button, {
     output_dir <- file.path(base_output_dir, "t1k")
     #----------------------------------------------------------
     cmd <- paste(
-      "perl /T1K/run-t1k",
+      "perl /T1K-1.0.10/run-t1k",
       "-t", num_cores,
       "--preset hla",
       "-1 ./Input/sample_1.fastq.gz",
