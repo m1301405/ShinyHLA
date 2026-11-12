@@ -720,19 +720,31 @@ observeEvent(input$hla_typing_button, {
     } else if (input$imgthla == "v3.53.0") {
       system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary53 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.54.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary54 sample ./Output/hlahd", sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.1/IMGTHLA_version/dictionary54 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.55.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary55 sample ./Output/hlahd", sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.1/IMGTHLA_version/dictionary55 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.56.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary56 sample ./Output/hlahd", sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.1/IMGTHLA_version/dictionary56 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.57.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary57 sample ./Output/hlahd", sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.1/IMGTHLA_version/dictionary57 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.58.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary58 sample ./Output/hlahd", sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.1/IMGTHLA_version/dictionary58 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.59.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary59 sample ./Output/hlahd", sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.1/IMGTHLA_version/dictionary59 sample ./Output/hlahd", sep = ""))
     } else if (input$imgthla == "v3.60.0") {
-      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.0/IMGTHLA_version/dictionary60 sample ./Output/hlahd", sep = ""))
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.1/IMGTHLA_version/dictionary60 sample ./Output/hlahd", sep = ""))
+    } else if (input$imgthla == "v3.61.0") {
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.1/IMGTHLA_version/dictionary61 sample ./Output/hlahd", sep = ""))
+    } else if (input$imgthla == "v3.62.0") {
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.1/IMGTHLA_version/dictionary62 sample ./Output/hlahd", sep = ""))
+    } else if (input$imgthla == "v3.63.0") {
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.1/IMGTHLA_version/dictionary63 sample ./Output/hlahd", sep = ""))
+    } else if (input$imgthla == "v3.64.0") {
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.1/IMGTHLA_version/dictionary64 sample ./Output/hlahd", sep = ""))
+    } else if (input$imgthla == "v3.65.0") {
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.1/IMGTHLA_version/dictionary65 sample ./Output/hlahd", sep = ""))
+    } else if (input$imgthla == "v3.66.0") {
+      system(paste("hlahd.sh -t ", num_cores, " -m 100 -c 0.95 -f /hlahd.1.7.0/freq_data ./Input/sample_1.fastq.gz ./Input/sample_2.fastq.gz /hlahd.1.7.0/HLA_gene.split.txt /hlahd.1.7.1/IMGTHLA_version/dictionary66 sample ./Output/hlahd", sep = ""))
     }
     #----------------------------------------------------------
     if (input$imgthla == "v3.14.0") {
@@ -748,19 +760,31 @@ observeEvent(input$hla_typing_button, {
     } else if (input$imgthla == "v3.53.0") {
       reference_fasta <- "/hlahd.1.7.0/IMGTHLA_version/dictionary53/all_exon_N150.fasta"
     } else if (input$imgthla == "v3.54.0") {
-      reference_fasta <- "/hlahd.1.7.0/IMGTHLA_version/dictionary54/all_exon_N150.fasta"
+      reference_fasta <- "/hlahd.1.7.1/IMGTHLA_version/dictionary54/all_exon_N150.fasta"
     } else if (input$imgthla == "v3.55.0") {
-      reference_fasta <- "/hlahd.1.7.0/IMGTHLA_version/dictionary55/all_exon_N150.fasta"
+      reference_fasta <- "/hlahd.1.7.1/IMGTHLA_version/dictionary55/all_exon_N150.fasta"
     } else if (input$imgthla == "v3.56.0") {
-      reference_fasta <- "/hlahd.1.7.0/IMGTHLA_version/dictionary56/all_exon_N150.fasta"
+      reference_fasta <- "/hlahd.1.7.1/IMGTHLA_version/dictionary56/all_exon_N150.fasta"
     } else if (input$imgthla == "v3.57.0") {
-      reference_fasta <- "/hlahd.1.7.0/IMGTHLA_version/dictionary57/all_exon_N150.fasta"
+      reference_fasta <- "/hlahd.1.7.1/IMGTHLA_version/dictionary57/all_exon_N150.fasta"
     } else if (input$imgthla == "v3.58.0") {
-      reference_fasta <- "/hlahd.1.7.0/IMGTHLA_version/dictionary58/all_exon_N150.fasta"
+      reference_fasta <- "/hlahd.1.7.1/IMGTHLA_version/dictionary58/all_exon_N150.fasta"
     } else if (input$imgthla == "v3.59.0") {
-      reference_fasta <- "/hlahd.1.7.0/IMGTHLA_version/dictionary59/all_exon_N150.fasta"
+      reference_fasta <- "/hlahd.1.7.1/IMGTHLA_version/dictionary59/all_exon_N150.fasta"
     } else if (input$imgthla == "v3.60.0") {
-      reference_fasta <- "/hlahd.1.7.0/IMGTHLA_version/dictionary60/all_exon_N150.fasta"
+      reference_fasta <- "/hlahd.1.7.1/IMGTHLA_version/dictionary60/all_exon_N150.fasta"
+    } else if (input$imgthla == "v3.61.0") {
+      reference_fasta <- "/hlahd.1.7.1/IMGTHLA_version/dictionary60/all_exon_N150.fasta"
+    } else if (input$imgthla == "v3.62.0") {
+      reference_fasta <- "/hlahd.1.7.1/IMGTHLA_version/dictionary60/all_exon_N150.fasta"
+    } else if (input$imgthla == "v3.63.0") {
+      reference_fasta <- "/hlahd.1.7.1/IMGTHLA_version/dictionary60/all_exon_N150.fasta"
+    } else if (input$imgthla == "v3.64.0") {
+      reference_fasta <- "/hlahd.1.7.1/IMGTHLA_version/dictionary60/all_exon_N150.fasta"
+    } else if (input$imgthla == "v3.65.0") {
+      reference_fasta <- "/hlahd.1.7.1/IMGTHLA_version/dictionary60/all_exon_N150.fasta"
+    } else if (input$imgthla == "v3.66.0") {
+      reference_fasta <- "/hlahd.1.7.1/IMGTHLA_version/dictionary60/all_exon_N150.fasta"
     } else {
       stop("Unknown IMGTHLA version")
     }
