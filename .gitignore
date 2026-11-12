@@ -1,0 +1,7 @@
+# Generated IMGT/HLA FASTA databases
+/IMGTHLA/
+
+# Download logs, manifests and state
+/.imgthla-fasta-state/
+
+/download_imgthla_fasta_61_66.py
