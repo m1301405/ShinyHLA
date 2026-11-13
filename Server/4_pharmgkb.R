@@ -1,66 +1,6 @@
 pharmgkb_panel_visible <- reactiveVal(FALSE)
 selected_allele <- reactiveVal(NULL)
 
-# Preserve the existing drug-name/link rules for all current values.  Only
-# values that contain both delimiter styles (";" and ",") are handled here:
-# each drug segment is passed back to the original make_drug_links() function,
-# and the original punctuation is restored between the resulting links.
-make_mixed_separator_drug_links <- function(value) {
-  if (is.null(value) || length(value) == 0 || is.na(value[[1]])) {
-    return("")
-  }
-
-  value <- trimws(as.character(value[[1]]))
-  if (value == "") {
-    return("")
-  }
-
-  has_semicolon <- grepl(";", value, fixed = TRUE)
-  has_comma <- grepl(",", value, fixed = TRUE)
-
-  # Keep the established behavior unchanged unless both separators occur in
-  # the same field (the newly observed PharmGKB case).
-  if (!(has_semicolon && has_comma)) {
-    return(make_drug_links(value))
-  }
-
-  delimiter_matches <- gregexpr("[;,]", value, perl = TRUE)[[1]]
-  delimiter_lengths <- attr(delimiter_matches, "match.length")
-  output_nodes <- list()
-  cursor <- 1L
-
-  append_drug <- function(start, end) {
-    if (end < start) {
-      return(invisible(NULL))
-    }
-
-    drug_name <- trimws(substr(value, start, end))
-    if (drug_name != "") {
-      output_nodes[[length(output_nodes) + 1L]] <<- make_drug_links(drug_name)
-    }
-    invisible(NULL)
-  }
-
-  for (i in seq_along(delimiter_matches)) {
-    delimiter_start <- delimiter_matches[[i]]
-    delimiter_end <- delimiter_start + delimiter_lengths[[i]] - 1L
-
-    append_drug(cursor, delimiter_start - 1L)
-
-    delimiter <- substr(value, delimiter_start, delimiter_end)
-    output_nodes[[length(output_nodes) + 1L]] <- tags$span(paste0(delimiter, " "))
-    cursor <- delimiter_end + 1L
-  }
-
-  append_drug(cursor, nchar(value))
-
-  if (length(output_nodes) == 0) {
-    return(make_drug_links(value))
-  }
-
-  do.call(tagList, output_nodes)
-}
-
 output$summary_annotation_overview <- renderUI({
   allele <- selected_allele()
   req(allele)
@@ -310,7 +250,7 @@ output$summary_annotation_tbl <- reactable::renderReactable({
         name = "Drugs",
         minWidth = 160,
         cell = function(value) {
-          make_mixed_separator_drug_links(value)
+          make_drug_links(value)
         }
       ),
       
@@ -674,7 +614,7 @@ output$variant_annotation_tbl <- reactable::renderReactable({
         name = "Drugs",
         minWidth = 150,
         cell = function(value) {
-          make_mixed_separator_drug_links(value)
+          make_drug_links(value)
         }
       ),
       
@@ -1036,7 +976,7 @@ output$druglabel_annotation_tbl <- reactable::renderReactable({
         name = "Drugs",
         minWidth = 160,
         cell = function(value) {
-          make_mixed_separator_drug_links(value)
+          make_drug_links(value)
         }
       ),
       
