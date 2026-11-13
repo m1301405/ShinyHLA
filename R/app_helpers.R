@@ -328,9 +328,11 @@ split_outside_quotes <- function(x, separators = c(",", ";")) {
   
   for (one_string in x) {
     one_string <- trimws(one_string)
-    
-    one_string <- gsub('^"(.*)"$', "\\1", one_string)
-    one_string <- gsub("^'(.*)'$", "\\1", one_string)
+
+    # Keep the original quotes until the scanner has identified every field.
+    # Removing the first and last quote here corrupts a quoted list such as:
+    # "beta-lactam antibacterials, penicillins", "other beta-lactam antibacterials"
+    # because the comma inside the first official drug name becomes exposed.
     
     one_string <- gsub("\u00A0", " ", one_string, fixed = TRUE)
     
@@ -437,61 +439,115 @@ split_drug_names <- function(x) {
   x <- safe_trim(x)
   x <- x[!is.na(x) & x != ""]
   if (length(x) == 0) return(character(0))
-  
-  out <- character(0)
-  
-  for (one in x) {
-    one <- trimws(one)
-    one <- gsub('^"(.*)"$', "\\1", one)
-    one <- gsub("^'(.*)'$", "\\1", one)
-    one <- trimws(one)
-    
-    # --------------------------------------------------
-    # 1) whole string is already a valid drug name
-    # --------------------------------------------------
-    if (is_valid_drug_name(one)) {
-      out <- c(out, one)
-      next
-    }
-    
-    # --------------------------------------------------
-    # 2) split by semicolon first
-    # --------------------------------------------------
-    semi_parts <- split_outside_quotes(one, separators = ";")
-    
-    # if semicolon split produced multiple parts, process each part
-    if (length(semi_parts) > 1) {
-      for (part in semi_parts) {
-        part <- trimws(part)
-        
-        if (is_valid_drug_name(part)) {
-          out <- c(out, part)
+
+  strip_token_quotes <- function(values) {
+    vapply(
+      values,
+      function(value) {
+        if (is.na(value)) return(NA_character_)
+
+        value <- trimws(as.character(value))
+        n <- nchar(value)
+
+        if (n >= 2L) {
+          first <- substr(value, 1L, 1L)
+          last <- substr(value, n, n)
+
+          if ((first == '"' && last == '"') ||
+              (first == "'" && last == "'")) {
+            value <- substr(value, 2L, n - 1L)
+          }
+        }
+
+        value <- gsub('""', '"', value, fixed = TRUE)
+        value <- gsub("''", "'", value, fixed = TRUE)
+        trimws(value)
+      },
+      character(1),
+      USE.NAMES = FALSE
+    )
+  }
+
+  has_unquoted_separator <- function(value, separator) {
+    chars <- strsplit(as.character(value), "", fixed = TRUE)[[1]]
+    if (length(chars) == 0L) return(FALSE)
+
+    active_quote <- ""
+    i <- 1L
+
+    while (i <= length(chars)) {
+      ch <- chars[[i]]
+
+      if (active_quote == "") {
+        if (ch %in% c('"', "'")) {
+          active_quote <- ch
+        } else if (ch == separator) {
+          return(TRUE)
+        }
+      } else if (ch == active_quote) {
+        if (i < length(chars) && chars[[i + 1L]] == active_quote) {
+          i <- i + 1L
         } else {
-          # try comma split only if the whole part is not a valid drug name
-          comma_parts <- split_outside_quotes(part, separators = ",")
-          comma_parts <- trimws(comma_parts)
-          comma_parts <- comma_parts[comma_parts != ""]
-          out <- c(out, comma_parts)
+          active_quote <- ""
         }
       }
+
+      i <- i + 1L
+    }
+
+    FALSE
+  }
+
+  append_parts <- function(raw_parts, current) {
+    for (raw_part in raw_parts) {
+      raw_part <- trimws(raw_part)
+      if (raw_part == "") next
+
+      clean_part <- strip_token_quotes(raw_part)
+
+      # An exact PharmGKB name has priority because a valid name may itself
+      # contain a comma.
+      if (is_valid_drug_name(clean_part)) {
+        current <- c(current, clean_part)
+        next
+      }
+
+      comma_parts <- split_outside_quotes(raw_part, separators = ",")
+      comma_parts <- strip_token_quotes(comma_parts)
+      comma_parts <- trimws(comma_parts)
+      comma_parts <- comma_parts[!is.na(comma_parts) & comma_parts != ""]
+      current <- c(current, comma_parts)
+    }
+
+    current
+  }
+
+  out <- character(0)
+
+  for (one in x) {
+    one <- trimws(one)
+    clean_one <- strip_token_quotes(one)
+
+    # 1) Preserve a whole value that already exactly matches drugs.tsv.
+    if (is_valid_drug_name(clean_one)) {
+      out <- c(out, clean_one)
       next
     }
-    
-    # --------------------------------------------------
-    # 3) no semicolon structure -> try comma logic
-    # --------------------------------------------------
-    if (is_valid_drug_name(one)) {
-      out <- c(out, one)
+
+    # 2) Keep the existing semicolon-first rule, but do not run a semicolon
+    # split when no unquoted semicolon exists. This preserves CSV quotes for
+    # the following comma-aware split.
+    semi_parts <- if (has_unquoted_separator(one, ";")) {
+      split_outside_quotes(one, separators = ";")
     } else {
-      comma_parts <- split_outside_quotes(one, separators = ",")
-      comma_parts <- trimws(comma_parts)
-      comma_parts <- comma_parts[comma_parts != ""]
-      out <- c(out, comma_parts)
+      one
     }
+
+    out <- append_parts(semi_parts, out)
   }
-  
+
   out <- trimws(out)
-  out <- out[out != ""]
+  out <- out[!is.na(out) & out != ""]
   unique(out)
 }
 
