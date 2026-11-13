@@ -19,8 +19,8 @@ ShinyHLA integrates several widely used HLA typing algorithms within a single gr
 
 - [OptiType v1.3.5](https://github.com/FRED-2/OptiType)
 - [arcasHLA v0.6.0](https://github.com/RabadanLab/arcasHLA)
-- [HLA-HD v1.7.0](https://w3.genome.med.kyoto-u.ac.jp/HLA-HD/)
-- [T1K v1.0.8](https://github.com/mourisl/T1K)
+- [HLA-HD v1.7.1](https://w3.genome.med.kyoto-u.ac.jp/HLA-HD/)
+- [T1K v1.0.10](https://github.com/mourisl/T1K)
 
 These tools are bundled inside the ShinyHLA Docker environment and **do not require manual installation**.
 
